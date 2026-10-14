@@ -2,6 +2,7 @@
 
 **Date:** 2026-10-14
 **Status:** Approved in conversation (sections 1–4); user asked to proceed straight to plan and execution.
+Revised 2026-10-14 after planning research (see §10) — changes are marked *(rev)*.
 **Sub-project:** 3 of 4 (1 = ROM survey spike ✅, 2 = relocation spike ✅, 3 = base port ← this, 4 = controls mod)
 
 ## 1. Goal and context
@@ -75,7 +76,7 @@ jfg/
 ├─ jfg.z64              user's ROM (git-ignored, never committed)
 ├─ tools/romtool/       our Python tool: ROM → ELF (+ tests)
 ├─ recomp/              N64Recomp config for JFG, function overrides, stubs
-├─ patches/             C replacements for game functions, compiled for MIPS
+├─ lib-patches/rt64/    our patch series for RT64 (JFG microcode support) *(rev)*
 ├─ src/                 frontend: JFG-specific startup, config, menus (from the fork)
 ├─ lib/                 submodules: N64Recomp, N64ModernRuntime, RT64, …
 ├─ docs/                specs and plans
@@ -110,13 +111,13 @@ The fork makes the repository GPL-3.0. `tools/romtool` is our own code.
 
 **Error policy — fail loudly, never guess:** wrong MD5 (print found vs expected); any broken layout
 invariant (e.g. "module 37 doesn't end where module 38 begins"); symbol index out of range;
-unknown reloc type/kind — all are hard errors unless the exact entry is allow-listed in
-`recomp/function_overrides.toml`.
+unknown reloc type/kind — all are hard errors. *(rev)* No allow-list: the MD5 pins the input and the
+real ROM contains no unknown entries, so an allow-list could never be exercised.
 
 **Core correctness property:** for every module and several random load addresses, (a) applying our
 ELF's relocations with a generic ELF relocator and (b) running `loader_ref.py` on the raw ROM
-tables produce byte-identical module images; and stripping relocated fields from the ELF section
-data reproduces the original ROM bytes exactly.
+tables produce byte-identical module images (call sites redirected to thunks are checked against the
+thunk's recorded target instead); and every word that is not a relocation site is identical to the ROM.
 
 ## 5. Component: recompilation config and runtime glue
 
@@ -127,24 +128,41 @@ data reproduces the original ROM bytes exactly.
 - N64Recomp warnings are build errors except for explicitly allow-listed entries.
 
 ### Runtime glue (`patches/`, `src/`)
-- **Module registration:** replace the game's module load (`0x80053D2C`) and unload functions with
-  wrappers that run the original logic and notify the runtime (`module N loaded at X` /
-  `module N unloaded`), so relocatable recompiled code resolves its sections correctly.
-- **Cross-module calls:** behaviour must match the game — a call into an unloaded module goes to the
-  stub (`0x80054530`) and never into code whose data is absent. Verify how N64Recomp emits R_26
-  calls between relocatable sections; if it calls directly, `romtool` routes those (~460) references
-  through a lookup trampoline that checks the target module is loaded.
+- **Module registration** *(rev)*: N64Recomp `[[patches.hook]]` entries (no MIPS patch pipeline in
+  the base port): a hook at the start of the game's DMA routine (`0x8004D640`) registers a module with
+  the runtime whenever its code is copied in (covers every load path, and re-registers a module that
+  moves); a hook in the unload function (`0x8005372C`, before `0x800537E0`) unregisters it.
+- **Dynamic linking** *(rev)*: `0x80054530` is the game's *lazy linker*, not an error stub: a call into a
+  module is first compiled as `jal 0x80054530`; on first use it finds the call site via `$ra`, loads the
+  module, patches that call instruction in RAM and jumps to the target; unloading re-points calls at
+  it. The main segment has its own import table (ROM `0x1ECF220`: 513 calls, 2 HI/LO pairs, 3 data
+  words). Recompiled code never re-reads instructions, so every re-linkable call — 513 in main, 515
+  module→other-module — is redirected in the ELF to a generated MIPS thunk that sets `$ra` to the real
+  return address, reads the call instruction from RAM and tail-jumps to wherever it points (lazy linker
+  or real target). The 2 main HI/LO pairs get hooks that load the RAM-patched address. Module→own and
+  module→main calls stay direct. N64Recomp's own HI16/LO16 relocation macros handle module data.
 - **Game registration:** ROM hash, Flash RAM save type, Rumble Pak, CIC-6105 boot state.
-- **Audio:** identify JFG's audio RSP microcode and statically recompile it with RSPRecomp.
-- **Graphics:** RT64 HLE of JFG's graphics microcode.
+- **Audio:** JFG's audio microcode (vram `0x8009DA10`; n_audio + MP3 family, as Banjo-Tooie / Perfect
+  Dark) is statically recompiled with RSPRecomp, including any IMEM overlay.
+- **Graphics** *(rev)*: JFG uses Rare's Diddy Kong Racing–derived microcode ("F3DJFG" in GLideN64),
+  which RT64 does not support (it would crash). We add a `F3DDKR`/`F3DJFG` GBI family to RT64,
+  modelled on its Perfect Dark family, kept as a patch series in `lib-patches/rt64/`.
 - **Frontend:** JFG naming, ROM selection with hash check, Zelda-specific menus and mods removed;
   the runtime's input remapping is kept.
 
-### Risks to retire first (each may change the design)
-1. Graphics microcode identity and RT64 support.
-2. Audio microcode identity and RSPRecomp support.
-3. N64Recomp's handling of R_26 between relocatable sections.
-4. Rare anti-tamper checks in JFG (find; disable if present).
+- **Hardware access audit** *(rev)*: N64ModernRuntime replaces libultra by name and cannot run kseg1 /
+  COP0 / cache code. romtool names libultra with n64sym (whose signatures lack libultra 2.0D–2.0G —
+  gaps are named by hand) and flags every other function touching hardware; each must be reviewed
+  (`patch` via a hook that does the work natively and returns, or `harmless`). This is where a custom
+  Flash RAM driver or CIC-6105 anti-tamper check would surface.
+- **Versions** *(rev)*: keep Zelda64Recomp's pinned N64ModernRuntime and RT64; build N64Recomp at the
+  commit Zelda64Recomp's CI uses (bump only if `[[patches.hook]]` is missing).
+
+### Risks — status after planning research *(rev)*
+1. Graphics microcode: identified; **unsupported by RT64** → implement (largest single work item).
+2. Audio microcode: identified; RSPRecomp-able; overlay layout to confirm.
+3. R_26 between relocatable sections: N64Recomp emits direct calls → solved with thunks.
+4. Anti-tamper / custom hardware drivers: covered by the hardware audit.
 
 ## 6. Testing
 
@@ -157,8 +175,8 @@ data reproduces the original ROM bytes exactly.
   (no overlaps; every `jal` target is a function start; every function ends in `jr $ra` or a tail
   jump).
 - **Recompile:** zero non-allow-listed N64Recomp warnings.
-- **Runtime:** debug-flag logging of every module load/unload and every call that hits the
-  unloaded-module stub; a smoke script boots the binary with the ROM for a fixed time and checks it
+- **Runtime:** debug-flag logging (`JFG_DEBUG_MODULES=1`) of every module load/unload and every
+  lazy-link event; a C++ unit test of the registration hooks against a fake runtime; a smoke script boots the binary with the ROM for a fixed time and checks it
   is alive, presenting frames, and logged no runtime errors; ares used as visual/audio reference.
 
 ## 7. Definition of done
@@ -170,7 +188,8 @@ data reproduces the original ROM bytes exactly.
 4. Graphics: no missing/corrupt geometry, textures or HUD versus ares.
 5. Audio: music and SFX correct, no crackle or drift.
 6. Input: gamepad and keyboard via runtime remapping; rumble on a supported pad.
-7. Stability: ≥ 30 minutes play with no crash and no unexpected unloaded-module stub hits.
+7. Stability: ≥ 30 minutes play with no crash and no `Failed to find function` / unregistered-module
+   errors. *(rev)* Lazy-link events are normal game behaviour, not failures.
 
 ## 8. Out of scope
 
@@ -182,3 +201,17 @@ builds, a decompilation, public distribution, verifying planets beyond Goldwood.
 Ubuntu 24.04, NVIDIA RTX 3080 (Vulkan ICD present), gcc 13, cmake 3.28, ninja 1.11, Python 3.12.
 Missing and required: clang (host + MIPS target), SDL2 development package; others per the
 fork's build docs.
+
+## 10. Revision notes *(rev, 2026-10-14)*
+
+Planning research (reading N64Recomp, N64ModernRuntime, Zelda64Recomp, RT64, n64sym, GLideN64 and
+mupen64plus-rsp-hle sources, plus further ROM analysis) changed these points; the approach (A: ROM →
+ELF → N64Recomp on a Zelda64Recomp fork) is unchanged:
+- N64Recomp's symbol-file mode cannot express cross-section relocations → ELF mode (as designed).
+- The ELF must be a *linked* image: instruction immediates hold link-time addresses, `r_offset` is a
+  virtual address, ROM addresses come from `PT_LOAD` `p_paddr`, relocations match by `.rel<name>`.
+- RT64 lacks JFG's microcode → RT64 patch series (§5 Graphics).
+- `0x80054530` is a lazy linker; dynamic-call thunks + main HI/LO hooks reproduce it (§5).
+- Module registration via DMA + unload hooks instead of wrapping the load function; no MIPS C patch
+  pipeline in the base port (sub-project 4 reintroduces it for the controls).
+- Microcode occupies `0x8009DA10–0x800A0660` of main "text"; CPU code ends at `0x8009DA10`.
