@@ -21,13 +21,9 @@ section = 0
 address = 0x80053D2C
 name = "module_load"
 
-# libultra's hand-written exception/thread assembly. It branches between internal labels across what
+# libultra's hand-written exception/thread assembly (named by n64sym: __osExceptionPreamble, send_mesg, ...). It branches between internal labels across what
 # look like function boundaries, uses $k0/$k1 and RCP registers, and is never recompiled: N64ModernRuntime
 # replaces the exception and thread machinery. Task 7 checks each of these is named as runtime-handled.
-[[exempt]]
-section = 0
-address = 0x80073E80
-reason = "libultra exception/thread assembly: branches into 0x8007475C, a label in the next routine"
 
 [[exempt]]
 section = 0
@@ -38,3 +34,109 @@ reason = "libultra exception handler: branches to labels at 0x80075664 / 0x80075
 section = 0
 address = 0x800755B0
 reason = "libultra exception helper (called via jal from the handler) that branches back into it"
+
+# Rare's hand-written floating-point routine at 0x80073E80 calls helpers placed after it (0x800742E8,
+# 0x800743D0 — also called from elsewhere) and branches straight into a label inside the second helper
+# (0x80073F24 -> 0x8007475C). Recompile it as one function containing its helpers.
+[[extend]]
+section = 0
+address = 0x80073E80
+end = 0x80074E50
+reason = "asm routine branches into its helper at 0x800743D0; helpers stay callable on their own"
+
+# --- libultra functions n64sym has no signature for (this game's libultra predates its database) ---
+# Identified by behaviour from the disassembly; all are replaced by N64ModernRuntime by name.
+[[name]]
+section = 0
+address = 0x80097520
+name = "osInitialize"          # __osGetSR/__osSetSR/__osSetFpcCsr, PIF RAM status word, calls __createSpeedParam
+
+[[name]]
+section = 0
+address = 0x80098150
+name = "osCartRomInit"         # waits on PI status, builds the handle with base 0xB0000000 from DOM1 timings
+
+[[name]]
+section = 0
+address = 0x80099E50
+name = "osEPiRawStartDma"      # sets DOM1/DOM2 timings from the handle, then PI_DRAM/CART/LEN registers
+
+[[name]]
+section = 0
+address = 0x8009A030
+name = "__osDevMgrMain"        # PI manager thread: osRecvMesg loop over device requests
+
+[[name]]
+section = 0
+address = 0x8009AB80
+name = "__osViInit"            # clears VI state, programs VI registers
+
+[[name]]
+section = 0
+address = 0x8009BAC0
+name = "__osEPiRawWriteIo"     # domain timing setup, then stores a word to the device address
+
+[[name]]
+section = 0
+address = 0x8009BC20
+name = "__osEPiRawReadIo"      # domain timing setup, then loads a word from the device address
+
+# --- hardware-touching functions, reviewed (Task 7) ---
+[[hardware]]
+section = 0
+address = 0x80097788
+decision = "harmless"
+reason = "__createSpeedParam (reads PI DOM1/DOM2 timings); only caller is osInitialize (0x8009767C), which the runtime replaces"
+
+[[hardware]]
+section = 0
+address = 0x80048B00
+decision = "harmless"
+reason = "Rare's guarded interrupt disable: only mfc0/mtc0 Status, which N64Recomp emits as cop0_status_read/write runtime calls"
+
+[[hardware]]
+section = 0
+address = 0x80048B2C
+decision = "harmless"
+reason = "Rare's guarded interrupt restore: only mfc0/mtc0 Status (cop0_status_read/write)"
+
+[[hardware]]
+section = 0
+address = 0x80001EF8
+decision = "patch"
+reason = "game audio frame code reads AI_LEN_REG (0xA4500004) directly at 0x80001F2C; must use the runtime's osAiGetLength value"
+
+[[hardware]]
+section = 0
+address = 0x800841A0
+decision = "patch"
+reason = "anti-tamper: reads the RAM word at 0x802FB1F4 through uncached kseg1 (0xA02FB1F4), compares to 0xAD090010, clears it; rewrite the lui to kseg0 so it reads the same RAM"
+
+[[hardware]]
+section = 0
+address = 0x800841CC
+decision = "patch"
+reason = "anti-tamper: same as 0x800841A0 for 0x802FE1C0 / 0xAD170014"
+
+[[hardware]]
+section = 111
+address = 0x0
+decision = "patch"
+reason = "anti-tamper: reads cartridge ROM word 0x454 (+a0) directly via PI kseg1 and compares to 0x0109082B (true for this ROM); read it from the ROM instead"
+
+[[hardware]]
+section = 133
+address = 0x0
+decision = "patch"
+reason = "anti-tamper: reads cartridge ROM word 0xA5C (+a0) directly via PI kseg1 and compares to 0x1740FFF9 (true for this ROM); read it from the ROM instead"
+
+[[hardware]]
+section = 156
+address = 0x0
+decision = "patch"
+reason = "CIC-6105 check: compares RAM word 0x800002E8 (read via kseg1) with 0xC86E2000, left there by the 6105 boot process on real hardware; the port has no CIC, so answer as genuine hardware"
+
+[[name]]
+section = 0
+address = 0x80099D40
+name = "__osDisableInt"        # n64sym also matched this name inside Rare's guarded copy (0x80048B0C), so it was dropped as ambiguous

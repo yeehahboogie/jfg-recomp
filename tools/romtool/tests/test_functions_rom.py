@@ -17,3 +17,15 @@ def test_real_rom_functions(rom):
     with_code = {m.index for m in mods if m.text_size}
     assert {f.section for f in funcs} - {0} == with_code  # every module with code has functions
     print(f"\nfunctions: main {len(main)}, modules {len(funcs) - len(main)}")
+
+
+def test_duplicate_function_names_rejected(rom):
+    import dataclasses
+
+    import pytest
+
+    from romtool.rom import RomError
+    o = load_overrides(OVERRIDES)
+    clash = dataclasses.replace(o, names=o.names | {(0, 0x8003F500): "entrypoint"})
+    with pytest.raises(RomError, match="named more than once: entrypoint"):
+        find_all_functions(rom, clash)

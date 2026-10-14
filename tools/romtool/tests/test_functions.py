@@ -103,3 +103,33 @@ def test_exempt_override_parsed(tmp_path):
     path = tmp_path / "o.toml"
     path.write_text('[[exempt]]\nsection = 0\naddress = 0x80075020\nreason = "libultra exception handler"\n')
     assert load_overrides(path).exempt == {(0, 0x80075020)}
+
+
+def test_hardware_override_parsed_and_validated(tmp_path):
+    import pytest
+    from romtool.rom import RomError
+    good = tmp_path / "g.toml"
+    good.write_text('[[hardware]]\nsection = 0\naddress = 0x80001000\ndecision = "patch"\nreason = "flash"\n')
+    assert load_overrides(good).hardware == {(0, 0x80001000): "patch"}
+    bad = tmp_path / "b.toml"
+    bad.write_text('[[hardware]]\nsection = 0\naddress = 0x80001000\ndecision = "maybe"\nreason = "x"\n')
+    with pytest.raises(RomError, match="decision"):
+        load_overrides(bad)
+
+
+def test_extend_override_contains_later_functions():
+    from romtool.functions import apply_extensions
+    code = words(beq(A0, 0, 6), NOP, JR_RA, NOP,      # f0: branches to BASE+28, past f1's start
+                 addiu_sp(-8), JR_RA, NOP,             # f1 at BASE+16 (a call target)
+                 addiu_sp(8), JR_RA, NOP)              # label targeted by f0
+    spans = split_functions(code, BASE, {BASE, BASE + 16})
+    assert any("branch" in p for p in check_invariants(code, BASE, spans, {BASE, BASE + 16}))
+    extended = apply_extensions(spans, {BASE: BASE + 40})
+    assert extended[0] == (BASE, BASE + 40)
+    assert check_invariants(code, BASE, extended, {BASE, BASE + 16}) == []
+
+
+def test_extend_override_parsed(tmp_path):
+    path = tmp_path / "o.toml"
+    path.write_text('[[extend]]\nsection = 0\naddress = 0x80073E80\nend = 0x80074E50\nreason = "asm routine"\n')
+    assert load_overrides(path).extend == {(0, 0x80073E80): 0x80074E50}

@@ -24,16 +24,26 @@ class Overrides:
     merge: frozenset = frozenset()
     names: dict = field(default_factory=dict)
     exempt: frozenset = frozenset()  # (section, start): runtime-replaced assembly; body checks skipped
+    hardware: dict = field(default_factory=dict)  # (section, address) -> decision ("patch" | "harmless")
+    extend: dict = field(default_factory=dict)  # (section, start) -> end: function contains later ones
 
 
 def load_overrides(path: str | Path) -> Overrides:
     data = tomllib.loads(Path(path).read_text())
     key = lambda e: (int(e["section"]), int(e["address"]))  # noqa: E731
+    for e in data.get("extend", []):
+        if not e.get("reason") or int(e["end"]) <= int(e["address"]):
+            raise RomError(f"extend override {e} needs end > address and a reason")
+    for e in data.get("hardware", []):
+        if e.get("decision") not in ("patch", "harmless") or not e.get("reason"):
+            raise RomError(f"hardware override {e} needs decision 'patch' or 'harmless' and a reason")
     return Overrides(
         add_start=frozenset(key(e) for e in data.get("add_start", [])),
         merge=frozenset(key(e) for e in data.get("merge", [])),
         names={key(e): e["name"] for e in data.get("name", [])},
         exempt=frozenset(key(e) for e in data.get("exempt", [])),
+        hardware={key(e): e["decision"] for e in data.get("hardware", [])},
+        extend={key(e): int(e["end"]) for e in data.get("extend", [])},
     )
 
 
@@ -97,14 +107,22 @@ def extend_fallthroughs(code: bytes, base: int, spans: list[tuple[int, int]]) ->
     return out
 
 
+def apply_extensions(spans: list[tuple[int, int]], extend: dict[int, int]) -> list[tuple[int, int]]:
+    """Hand-written routines that branch into helpers placed after them become one function containing them."""
+    return [(s, max(e, extend.get(s, e))) for s, e in spans]
+
+
 def check_invariants(code: bytes, base: int, spans: list[tuple[int, int]], call_targets: set[int],
                      exempt: set[int] = frozenset()) -> list[str]:
     ws = _words(code)
     word = lambda a: ws[(a - base) // 4]  # noqa: E731
     problems = []
-    for (s0, e0), (s1, e1) in zip(spans, spans[1:]):
-        if e0 > s1 and e0 != e1:  # a fall-through function may fully contain the one it runs into
-            problems.append(f"functions {s0:#x} and {s1:#x} overlap")
+    for i, (s0, e0) in enumerate(spans):
+        for s1, e1 in spans[i + 1:]:
+            if s1 >= e0:
+                break
+            if e1 > e0:  # a function may fully contain later ones (fall-through, [[extend]]), never half
+                problems.append(f"functions {s0:#x} and {s1:#x} overlap")
     starts = {s for s, _ in spans}
     for t in sorted(call_targets):
         if t not in starts:
@@ -158,11 +176,16 @@ def find_all_functions(rom: bytes, overrides: Overrides) -> list[Function]:
             problems += [f"main: call target {t:#x} outside main code" for t in sorted(outside)]
         seeds = seeds - outside
         spans = extend_fallthroughs(code, base, split_functions(code, base, seeds, merge))
+        spans = apply_extensions(spans, {a: e for (s, a), e in overrides.extend.items() if s == section})
         exempt = {a for s, a in overrides.exempt if s == section}
         problems += [f"section {section}: {p}" for p in check_invariants(code, base, spans, seeds, exempt)]
         for s, e in spans:
             default = f"func_{s:08X}" if section == MAIN else f"m{section:03d}_{s:05X}"
             functions.append(Function(section, s, e, overrides.names.get((section, s), default)))
+    seen: dict[str, int] = {}
+    for f in functions:
+        seen[f.name] = seen.get(f.name, 0) + 1
+    problems += [f"named more than once: {n}" for n, k in sorted(seen.items()) if k > 1]
     if problems:
         raise RomError("function discovery found problems:\n  " + "\n  ".join(problems))
     return functions

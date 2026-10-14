@@ -1700,7 +1700,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Why: N64ModernRuntime replaces libultra functions **by name**, and cannot run code that touches hardware registers directly (no kseg1, COP0, cache or TLB). Every function that does so must be either a libultra function the runtime handles, or reviewed and given a decision (`patch` → handled in Task 12 via a `[[patches.hook]]` that `return`s early, or `harmless`, e.g. dead debug code).
 
-- [ ] **Step 1: Write the failing ROM-free audit tests**
+- [x] **Step 1: Write the failing ROM-free audit tests**
 
 `tools/romtool/tests/test_audit.py`:
 ```python
@@ -1729,12 +1729,12 @@ def test_float_constant_not_flagged():
     assert hardware_accesses(code, BASE, [(BASE, BASE + 16)]) == {}
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_audit.py`
 Expected: FAIL — `No module named 'romtool.audit'`.
 
-- [ ] **Step 3: Implement `audit.py`**
+- [x] **Step 3: Implement `audit.py`**
 
 `tools/romtool/romtool/audit.py`:
 ```python
@@ -1783,12 +1783,12 @@ def unreviewed(functions, accesses_by_section, names_handled, overrides) -> list
     return out
 ```
 
-- [ ] **Step 4: Run the ROM-free tests**
+- [x] **Step 4: Run the ROM-free tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_audit.py`
 Expected: 2 passed.
 
-- [ ] **Step 5: Implement `libultra.py` and extend overrides**
+- [x] **Step 5: Implement `libultra.py` and extend overrides**
 
 `tools/romtool/romtool/libultra.py`:
 ```python
@@ -1846,7 +1846,7 @@ def load_overrides(path: str | Path) -> Overrides:
     )
 ```
 
-- [ ] **Step 6: Write the ROM-backed test**
+- [x] **Step 6: Write the ROM-backed test**
 
 `tools/romtool/tests/test_libultra_rom.py`:
 ```python
@@ -1899,7 +1899,7 @@ def test_libultra_and_hardware_audit(rom):
     assert problems == [], "review these and add [[hardware]] entries:\n" + "\n".join(problems)
 ```
 
-- [ ] **Step 7: Run it and review every unreviewed function**
+- [x] **Step 7: Run it and review every unreviewed function**
 
 Run: `tools/romtool/.venv/bin/pytest -q -s tools/romtool/tests/test_libultra_rom.py`
 For each listed function, disassemble it (`romtool disasm` arrives in Task 10; until then use the rabbitizer one-liner from Task 5 Step 8) and decide:
@@ -1908,7 +1908,7 @@ For each listed function, disassemble it (`romtool disasm` arrives in Task 10; u
 - Unreachable/debug-only → `decision = "harmless"` with the evidence (e.g. "only caller is the crash screen at 0x...").
 Repeat until the test passes. The `patch` list is the input to Task 12 Step 6.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/romtool recomp/function_overrides.toml
