@@ -12,6 +12,8 @@ namespace {
 const bool debug = std::getenv("JFG_DEBUG_CONTROLS") != nullptr;
 constexpr gpr disablejoy = (gpr)(int32_t)0x800F6DBC; // tested first by controlReadJoypad (0x80037250)
 constexpr gpr cam0 = (gpr)(int32_t)0x800FA4D0;       // camGetListPtr() (0x80041E0C); entry 0 is player 1's camera
+constexpr gpr control_mode_keys = (gpr)(int32_t)0x800A18B0; // controlModeKeys: pointer to the active key map
+constexpr uint32_t normal_keys = 0x800A18B4;                  // Normal key map table (Expert is 0x800A18D8)
 uint32_t frame_no = 0;
 uint32_t camera_pd = 0; // dispatcher's a1, captured at entry (it reuses s0 before returning)
 
@@ -37,6 +39,13 @@ extern "C" void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx) {
                                       MEM_W(0, disablejoy) != 0};
     if (v.index == 0) {
         jfg::controls::g_frame = {jfg::controls::modern_applies(v, scheme_modern()), pd, (uint32_t)obj, 0};
+    }
+}
+
+extern "C" void jfg_controls_force_normal_keymap(uint8_t* rdram, recomp_context*) {
+    // The modern translation (src/jfg/controls/translate.cpp) produces Normal-map buttons.
+    if (jfg::controls::g_frame.active) {
+        MEM_W(0, control_mode_keys) = (int32_t)normal_keys;
     }
 }
 

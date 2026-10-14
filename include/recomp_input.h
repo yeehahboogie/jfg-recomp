@@ -39,6 +39,23 @@ namespace recomp {
         DEFINE_INPUT(X_AXIS_NEG, 0, "Left") \
         DEFINE_INPUT(X_AXIS_POS, 0, "Right") \
 
+    // Jet Force Gemini's modern control scheme (src/jfg/controls). Used instead of the N64 buttons when it is on.
+    #define DEFINE_JFG_MODERN_INPUTS() \
+        DEFINE_INPUT(JFG_FIRE, 0, "Fire (Modern)") \
+        DEFINE_INPUT(JFG_AIM, 0, "Aim (Modern)") \
+        DEFINE_INPUT(JFG_JUMP, 0, "Jump (Modern)") \
+        DEFINE_INPUT(JFG_CROUCH, 0, "Crouch/Roll (Modern)") \
+        DEFINE_INPUT(JFG_WEAPON_PREV, 0, "Previous weapon (Modern)") \
+        DEFINE_INPUT(JFG_WEAPON_NEXT, 0, "Next weapon (Modern)") \
+        DEFINE_INPUT(JFG_QUICK_1, 0, "Quick weapon 1 (Modern)") \
+        DEFINE_INPUT(JFG_QUICK_2, 0, "Quick weapon 2 (Modern)") \
+        DEFINE_INPUT(JFG_QUICK_3, 0, "Quick weapon 3 (Modern)") \
+        DEFINE_INPUT(JFG_QUICK_4, 0, "Quick weapon 4 (Modern)") \
+        DEFINE_INPUT(JFG_LOOK_LEFT, 0, "Look left (Modern)") \
+        DEFINE_INPUT(JFG_LOOK_RIGHT, 0, "Look right (Modern)") \
+        DEFINE_INPUT(JFG_LOOK_UP, 0, "Look up (Modern)") \
+        DEFINE_INPUT(JFG_LOOK_DOWN, 0, "Look down (Modern)")
+
     #define DEFINE_RECOMP_UI_INPUTS() \
         DEFINE_INPUT(TOGGLE_MENU, 0, "Toggle Menu") \
         DEFINE_INPUT(ACCEPT_MENU, 0, "Accept (Menu)") \
@@ -47,6 +64,7 @@ namespace recomp {
     #define DEFINE_ALL_INPUTS() \
         DEFINE_N64_BUTTON_INPUTS() \
         DEFINE_N64_AXIS_INPUTS() \
+        DEFINE_JFG_MODERN_INPUTS() \
         DEFINE_RECOMP_UI_INPUTS()
 
     // Enum containing every recomp input.
@@ -72,6 +90,8 @@ namespace recomp {
     void poll_inputs();
     float get_input_analog(const InputField& field);
     float get_input_analog(const std::span<const recomp::InputField> fields);
+    // As get_input_analog, but right-stick axes are read even while right_analog_suppressed is set.
+    float get_input_analog_unsuppressed(const std::span<const recomp::InputField> fields);
     bool get_input_digital(const InputField& field);
     bool get_input_digital(const std::span<const recomp::InputField> fields);
     void get_gyro_deltas(float* x, float* y);
@@ -115,6 +135,21 @@ namespace recomp {
         std::vector<InputField> analog_up;
         std::vector<InputField> analog_down;
 
+        std::vector<InputField> jfg_fire;
+        std::vector<InputField> jfg_aim;
+        std::vector<InputField> jfg_jump;
+        std::vector<InputField> jfg_crouch;
+        std::vector<InputField> jfg_weapon_prev;
+        std::vector<InputField> jfg_weapon_next;
+        std::vector<InputField> jfg_quick_1;
+        std::vector<InputField> jfg_quick_2;
+        std::vector<InputField> jfg_quick_3;
+        std::vector<InputField> jfg_quick_4;
+        std::vector<InputField> jfg_look_left;
+        std::vector<InputField> jfg_look_right;
+        std::vector<InputField> jfg_look_up;
+        std::vector<InputField> jfg_look_down;
+
         std::vector<InputField> toggle_menu;
         std::vector<InputField> accept_menu;
         std::vector<InputField> apply_menu;
@@ -141,6 +176,20 @@ namespace recomp {
             case GameInput::X_AXIS_POS: return defaults.analog_right;
             case GameInput::Y_AXIS_POS: return defaults.analog_up;
             case GameInput::Y_AXIS_NEG: return defaults.analog_down;
+            case GameInput::JFG_FIRE: return defaults.jfg_fire;
+            case GameInput::JFG_AIM: return defaults.jfg_aim;
+            case GameInput::JFG_JUMP: return defaults.jfg_jump;
+            case GameInput::JFG_CROUCH: return defaults.jfg_crouch;
+            case GameInput::JFG_WEAPON_PREV: return defaults.jfg_weapon_prev;
+            case GameInput::JFG_WEAPON_NEXT: return defaults.jfg_weapon_next;
+            case GameInput::JFG_QUICK_1: return defaults.jfg_quick_1;
+            case GameInput::JFG_QUICK_2: return defaults.jfg_quick_2;
+            case GameInput::JFG_QUICK_3: return defaults.jfg_quick_3;
+            case GameInput::JFG_QUICK_4: return defaults.jfg_quick_4;
+            case GameInput::JFG_LOOK_LEFT: return defaults.jfg_look_left;
+            case GameInput::JFG_LOOK_RIGHT: return defaults.jfg_look_right;
+            case GameInput::JFG_LOOK_UP: return defaults.jfg_look_up;
+            case GameInput::JFG_LOOK_DOWN: return defaults.jfg_look_down;
             case GameInput::TOGGLE_MENU: return defaults.toggle_menu;
             case GameInput::ACCEPT_MENU: return defaults.accept_menu;
             case GameInput::APPLY_MENU: return defaults.apply_menu;

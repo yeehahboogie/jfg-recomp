@@ -28,6 +28,9 @@ static struct {
     SDL_Keymod keymod = SDL_Keymod::KMOD_NONE;
     int numkeys = 0;
     std::atomic_int32_t mouse_wheel_pos = 0;
+    int32_t prev_mouse_wheel_pos = 0;
+    std::atomic_uint32_t mouse_buttons = 0;   // SDL_GetMouseState() at the last poll
+    std::atomic_int32_t mouse_wheel_step = 0; // wheel movement since the previous poll: > 0 up, < 0 down
     std::mutex cur_controllers_mutex;
     std::vector<SDL_GameController*> cur_controllers{};
     std::unordered_map<SDL_JoystickID, ControllerState> controller_states;
@@ -56,6 +59,10 @@ enum class InputType {
     ControllerDigital,
     ControllerAnalog // Axis input_id values are the SDL value + 1
 };
+
+// Mouse input ids: SDL button numbers (1 left, 2 middle, 3 right, 4 and 5 side), plus the wheel directions.
+constexpr int32_t mouse_wheel_up_id = 100;
+constexpr int32_t mouse_wheel_down_id = 101;
 
 void set_scanned_input(recomp::InputField value) {
     scanning_device.store(recomp::InputDevice::COUNT);
@@ -167,9 +174,21 @@ bool sdl_event_filter(void* userdata, SDL_Event* event) {
     case SDL_EventType::SDL_MOUSEWHEEL:
         {
             SDL_MouseWheelEvent* wheel_event = &event->wheel;    
-            InputState.mouse_wheel_pos.fetch_add(wheel_event->y * (wheel_event->direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1));
+            const int32_t step = wheel_event->y * (wheel_event->direction == SDL_MOUSEWHEEL_FLIPPED ? -1 : 1);
+            InputState.mouse_wheel_pos.fetch_add(step);
+            if (scanning_device == recomp::InputDevice::Keyboard && step != 0) {
+                set_scanned_input({(uint32_t)InputType::Mouse, step > 0 ? mouse_wheel_up_id : mouse_wheel_down_id});
+            }
         }
         queue_if_enabled(event);
+        break;
+    case SDL_EventType::SDL_MOUSEBUTTONDOWN:
+        // Mouse buttons can be bound in the keyboard column.
+        if (scanning_device == recomp::InputDevice::Keyboard) {
+            set_scanned_input({(uint32_t)InputType::Mouse, event->button.button});
+        } else {
+            queue_if_enabled(event);
+        }
         break;
     case SDL_EventType::SDL_CONTROLLERBUTTONDOWN:
         if (scanning_device != recomp::InputDevice::COUNT) {
@@ -384,6 +403,38 @@ const recomp::DefaultN64Mappings recomp::default_n64_keyboard_mappings = {
     .analog_down = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_S}
     },
+    .jfg_fire = {
+        {.input_type = (uint32_t)InputType::Mouse, .input_id = SDL_BUTTON_LEFT}
+    },
+    .jfg_aim = {
+        {.input_type = (uint32_t)InputType::Mouse, .input_id = SDL_BUTTON_RIGHT}
+    },
+    .jfg_jump = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_SPACE}
+    },
+    .jfg_crouch = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_LCTRL}
+    },
+    .jfg_weapon_prev = {
+        {.input_type = (uint32_t)InputType::Mouse, .input_id = mouse_wheel_down_id},
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_Q}
+    },
+    .jfg_weapon_next = {
+        {.input_type = (uint32_t)InputType::Mouse, .input_id = mouse_wheel_up_id},
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_E}
+    },
+    .jfg_quick_1 = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_1}
+    },
+    .jfg_quick_2 = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_2}
+    },
+    .jfg_quick_3 = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_3}
+    },
+    .jfg_quick_4 = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_4}
+    },
     .toggle_menu = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_ESCAPE}
     },
@@ -454,6 +505,48 @@ const recomp::DefaultN64Mappings recomp::default_n64_controller_mappings = {
     .analog_down = {
         {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = SDL_CONTROLLER_AXIS_LEFTY + 1},
     },
+    .jfg_fire = {
+        {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = SDL_CONTROLLER_AXIS_TRIGGERRIGHT + 1},
+    },
+    .jfg_aim = {
+        {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = SDL_CONTROLLER_AXIS_TRIGGERLEFT + 1},
+    },
+    .jfg_jump = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_SOUTH},
+    },
+    .jfg_crouch = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_EAST},
+    },
+    .jfg_weapon_prev = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_LEFTSHOULDER},
+    },
+    .jfg_weapon_next = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_RIGHTSHOULDER},
+    },
+    .jfg_quick_1 = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_DPAD_UP},
+    },
+    .jfg_quick_2 = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_DPAD_RIGHT},
+    },
+    .jfg_quick_3 = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_DPAD_DOWN},
+    },
+    .jfg_quick_4 = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_DPAD_LEFT},
+    },
+    .jfg_look_left = {
+        {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = -(SDL_CONTROLLER_AXIS_RIGHTX + 1)},
+    },
+    .jfg_look_right = {
+        {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = SDL_CONTROLLER_AXIS_RIGHTX + 1},
+    },
+    .jfg_look_up = {
+        {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = -(SDL_CONTROLLER_AXIS_RIGHTY + 1)},
+    },
+    .jfg_look_down = {
+        {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = SDL_CONTROLLER_AXIS_RIGHTY + 1},
+    },
     .toggle_menu = {
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_BACK},
     },
@@ -493,6 +586,11 @@ void recomp::poll_inputs() {
         InputState.mouse_delta = InputState.pending_mouse_delta;
         InputState.pending_mouse_delta = { 0.0f, 0.0f };
     }
+
+    InputState.mouse_buttons.store(SDL_GetMouseState(nullptr, nullptr));
+    const int32_t wheel_pos = InputState.mouse_wheel_pos.load();
+    InputState.mouse_wheel_step.store(wheel_pos - InputState.prev_mouse_wheel_pos);
+    InputState.prev_mouse_wheel_pos = wheel_pos;
     
     // Quicksaving is disabled for now and will likely have more limited functionality
     // when restored, rather than allowing saving and loading at any point in time.
@@ -608,6 +706,20 @@ float controller_axis_state(int32_t input_id, bool allow_suppression) {
     return false;
 }
 
+// A mouse button is held, or the wheel moved that way since the previous poll (a one-poll press).
+static bool mouse_input_state(int32_t input_id) {
+    if (input_id == mouse_wheel_up_id) {
+        return InputState.mouse_wheel_step.load() > 0;
+    }
+    if (input_id == mouse_wheel_down_id) {
+        return InputState.mouse_wheel_step.load() < 0;
+    }
+    if (input_id >= 1 && input_id <= 32) {
+        return (InputState.mouse_buttons.load() & SDL_BUTTON(input_id)) != 0;
+    }
+    return false;
+}
+
 float recomp::get_input_analog(const recomp::InputField& field) {
     switch ((InputType)field.input_type) {
     case InputType::Keyboard:
@@ -623,8 +735,7 @@ float recomp::get_input_analog(const recomp::InputField& field) {
     case InputType::ControllerAnalog:
         return controller_axis_state(field.input_id, true);
     case InputType::Mouse:
-        // TODO mouse support
-        return 0.0f;
+        return mouse_input_state(field.input_id) ? 1.0f : 0.0f;
     case InputType::None:
         return false;
     }
@@ -634,6 +745,15 @@ float recomp::get_input_analog(const std::span<const recomp::InputField> fields)
     float ret = 0.0f;
     for (const auto& field : fields) {
         ret += get_input_analog(field);
+    }
+    return std::clamp(ret, 0.0f, 1.0f);
+}
+
+float recomp::get_input_analog_unsuppressed(const std::span<const recomp::InputField> fields) {
+    float ret = 0.0f;
+    for (const auto& field : fields) {
+        ret += (InputType)field.input_type == InputType::ControllerAnalog ? controller_axis_state(field.input_id, false)
+                                                                           : get_input_analog(field);
     }
     return std::clamp(ret, 0.0f, 1.0f);
 }
@@ -654,8 +774,7 @@ bool recomp::get_input_digital(const recomp::InputField& field) {
         // TODO adjustable threshold
         return controller_axis_state(field.input_id, true) >= axis_threshold;
     case InputType::Mouse:
-        // TODO mouse support
-        return false;
+        return mouse_input_state(field.input_id);
     case InputType::None:
         return false;
     }
@@ -903,6 +1022,15 @@ std::string recomp::InputField::to_string() const {
             return controller_axis_to_string(input_id);
         case InputType::Keyboard:
             return keyboard_input_to_string((SDL_Scancode)input_id);
+        case InputType::Mouse:
+            switch (input_id) {
+                case SDL_BUTTON_LEFT: return "Mouse Left";
+                case SDL_BUTTON_MIDDLE: return "Mouse Middle";
+                case SDL_BUTTON_RIGHT: return "Mouse Right";
+                case mouse_wheel_up_id: return "Wheel Up";
+                case mouse_wheel_down_id: return "Wheel Down";
+                default: return "Mouse " + std::to_string(input_id);
+            }
         default:
             return std::to_string(input_type) + "," + std::to_string(input_id);
     }

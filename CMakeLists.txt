@@ -145,6 +145,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/gate.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/hooks.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/settings.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/controls/translate.cpp
 
     ${CMAKE_SOURCE_DIR}/lib/RmlUi/Backends/RmlUi_Platform_SDL.cpp
 )

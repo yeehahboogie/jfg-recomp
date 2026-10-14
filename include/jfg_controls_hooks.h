@@ -9,6 +9,8 @@ extern "C" {
 void jfg_controls_latch(uint8_t* rdram, recomp_context* ctx);
 /* controlPlayer (0x80032A48) entry, a0 = obj: per-player gate. */
 void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx);
+/* controlPlayer after it picks controlModeKeys (0x80032B40): Modern always uses the Normal key map. */
+void jfg_controls_force_normal_keymap(uint8_t* rdram, recomp_context* ctx);
 /* Camera dispatcher (0x8002B418) entry, a1 = pd. */
 void jfg_controls_camera_begin(uint8_t* rdram, recomp_context* ctx);
 /* Camera dispatcher before its epilogue (every path reaches 0x8002B954). */

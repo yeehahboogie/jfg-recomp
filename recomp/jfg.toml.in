@@ -100,6 +100,11 @@ func = "func_80032A48"          # controlPlayer(obj): per-player gate
 text = "jfg_controls_begin_player(rdram, ctx);"
 
 [[patches.hook]]
+func = "func_80032A48"          # controlPlayer, where both key-map paths join after controlModeKeys is set
+before_vram = 0x80032B40
+text = "jfg_controls_force_normal_keymap(rdram, ctx);"
+
+[[patches.hook]]
 func = "func_8002B418"          # camera dispatcher(obj, pd, ticks) entry
 text = "jfg_controls_camera_begin(rdram, ctx);"
 

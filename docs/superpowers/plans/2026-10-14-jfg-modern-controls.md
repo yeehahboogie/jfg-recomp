@@ -320,7 +320,7 @@ The menu rows themselves are checked by the user in Task 11 (they need clicks).
   - Frontend: `GameInput` entries `JFG_FIRE, JFG_AIM, JFG_JUMP, JFG_CROUCH, JFG_WEAPON_PREV, JFG_WEAPON_NEXT, JFG_QUICK_1..4, JFG_LOOK_LEFT, JFG_LOOK_RIGHT, JFG_LOOK_UP, JFG_LOOK_DOWN`
   - `float recomp::get_input_analog_unsuppressed(const std::span<const InputField>)`
 
-- [ ] **Step 1: Failing translation test.**
+- [x] **Step 1: Failing translation test.**
 
 `tests/controls/translate_test.cpp` asserts:
 - each single action maps to its bit;
@@ -328,13 +328,13 @@ The menu rows themselves are checked by the user in Task 11 (they need clicks).
 - `translate_original_passthrough`: `to_n64_buttons` isn't used in Original. That half is a frontend check, Step 7. Here, test that `Actions{}` maps to 0.
 - `update_aim_toggle(true, false) == true`, `update_aim_toggle(true, true) == false`, `update_aim_toggle(false, x) == x`.
 
-- [ ] **Step 2: Run, expect failure.**
+- [x] **Step 2: Run, expect failure.**
 
-- [ ] **Step 3: Implement `translate.{h,cpp}`** with exactly the bit table in Interfaces.
+- [x] **Step 3: Implement `translate.{h,cpp}`** with exactly the bit table in Interfaces.
 
-- [ ] **Step 4: Run, expect `translate_test: OK`.**
+- [x] **Step 4: Run, expect `translate_test: OK`.**
 
-- [ ] **Step 5: New bindable inputs.**
+- [x] **Step 5: New bindable inputs.**
 
 In `include/recomp_input.h`, add `#define DEFINE_JFG_MODERN_INPUTS()` with:
 - `DEFINE_INPUT(JFG_FIRE, 0, "Fire (Modern)")`, plus Aim, Jump, Crouch/Roll, Previous weapon, Next weapon, Quick weapon 1–4;
@@ -348,7 +348,7 @@ Defaults, in `src/game/input.cpp` where `default_n64_keyboard_mappings` and `def
 
 Use the same `{(uint32_t)InputType::..., id}` forms as the existing defaults.
 
-- [ ] **Step 6: Mouse buttons and wheel as digital inputs.**
+- [x] **Step 6: Mouse buttons and wheel as digital inputs.**
 
 In `src/game/input.cpp`:
 - `get_input_digital`, `case InputType::Mouse`: ids 1–5 are `SDL_BUTTON(id) & SDL_GetMouseState(nullptr, nullptr)`. Ids 100 (wheel up) and 101 (wheel down) are true for one poll when `mouse_wheel_pos` changed in that direction since the previous poll; track the previous value in `InputState`.
@@ -357,7 +357,7 @@ In `src/game/input.cpp`:
 - `InputField::to_string` for Mouse: "Mouse Left/Right/Middle/4/5", "Wheel Up/Down".
 - Add `get_input_analog_unsuppressed`, which is `get_input_analog` but with `controller_axis_state(id, false)` for `ControllerAnalog`.
 
-- [ ] **Step 7: The Modern path in `get_n64_input`** (`src/game/controls.cpp`).
+- [x] **Step 7: The Modern path in `get_n64_input`** (`src/game/controls.cpp`).
 
 If `jfg::controls::settings().modern`:
 1. Read each `JFG_*` action from both mapping arrays with `get_input_digital`. Trigger axes count when ≥ the existing axis threshold.
@@ -367,7 +367,7 @@ If `jfg::controls::settings().modern`:
 5. Call `recomp::set_right_analog_suppressed(true)`. In Original, call `set_right_analog_suppressed(false)` and run the existing code unchanged.
 6. The scripted-input path (`JFG_INPUT_SCRIPT`) still ORs its buttons on top in both modes.
 
-- [ ] **Step 8: Force the Normal key map in Modern.**
+- [x] **Step 8: Force the Normal key map in Modern.**
 
 Add a hook in `recomp/jfg.toml.in`:
 ```toml
@@ -380,11 +380,11 @@ Confirm 0x80032B40 is the instruction right after `controlModeKeys` (`0x800A18B0
 
 `jfg_controls_force_normal_keymap`: if `g_frame.active`, `MEM_W(0, 0x800A18B0) = 0x800A18B4`. Declare it in `jfg_controls_hooks.h`.
 
-- [ ] **Step 9: Build and check in game.**
+- [x] **Step 9: Build and check in game.**
 
 Use a scripted run to Goldwood. The Goldwood script already uses N64 button names, which still work in Modern: the scripted buttons are ORed in. Then `scripts/screenshots.sh` at 300–310 s, to confirm Juno still moves and the game didn't crash.
 
-- [ ] **Step 10: Commit and push.**
+- [x] **Step 10: Commit and push.**
 
 ---
 
