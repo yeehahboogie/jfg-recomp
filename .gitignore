@@ -5,6 +5,11 @@
 *.rom
 /build/
 /generated/
+# Emulator saves written next to the ROM (game data)
+*.flash
+*.eeprom
+*.sra
+*.mpk
 tools/romtool/.venv/
 __pycache__/
 .pytest_cache/
