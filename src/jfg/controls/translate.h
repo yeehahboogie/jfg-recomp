@@ -11,6 +11,9 @@ struct Actions {
 // The N64 buttons that perform these actions under the game's Normal key map. `aim_held_effective` is the aim
 // state after hold/toggle handling; it becomes R.
 uint16_t to_n64_buttons(const Actions& a, bool aim_held_effective);
+// While aiming, a strong sideways movement stick also presses C-left / C-right: the crouch-aim state side-rolls on
+// them, and the standing aim state picks its strafe animation from them.
+uint16_t aim_strafe_buttons(bool aiming, float move_x);
 // Aim toggle mode: a press flips the aim state.
 bool update_aim_toggle(bool pressed_edge, bool current);
 }

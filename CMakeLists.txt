@@ -149,6 +149,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/input_state.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/free_camera.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/aim.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/controls/aim_move.cpp
 
     ${CMAKE_SOURCE_DIR}/lib/RmlUi/Backends/RmlUi_Platform_SDL.cpp
 )

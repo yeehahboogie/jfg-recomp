@@ -126,3 +126,15 @@ text = "jfg_free_camera_heading(rdram, ctx);"
 [[patches.hook]]
 func = "func_8003AABC"          # controlGetManualAim(obj, pd, yawLim, pitchLim, pitchMin, pitchMax, &yawOff, &pitchOff, ticks)
 text = "if (jfg_manual_aim(rdram, ctx)) return;"
+
+[[patches.hook]]
+func = "m015_05328"             # Vela: animation select (obj, pd, ...): walking while aiming
+text = "jfg_aim_move(rdram, ctx);"
+
+[[patches.hook]]
+func = "m016_05120"             # Juno: animation select
+text = "jfg_aim_move(rdram, ctx);"
+
+[[patches.hook]]
+func = "m017_04C50"             # Lupus: animation select
+text = "jfg_aim_move(rdram, ctx);"

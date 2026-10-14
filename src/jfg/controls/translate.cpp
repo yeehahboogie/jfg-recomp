@@ -21,5 +21,12 @@ uint16_t to_n64_buttons(const Actions& a, bool aim_held_effective) {
     return b;
 }
 
+uint16_t aim_strafe_buttons(bool aiming, float move_x) {
+    constexpr uint16_t c_left = 0x0002, c_right = 0x0001;
+    constexpr float threshold = 0.5f;
+    if (!aiming) return 0;
+    return move_x > threshold ? c_right : move_x < -threshold ? c_left : 0;
+}
+
 bool update_aim_toggle(bool pressed_edge, bool current) { return pressed_edge ? !current : current; }
 }

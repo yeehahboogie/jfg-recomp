@@ -188,6 +188,7 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
     if (modern) {
         modern_in.move_x = *x_out;
         modern_in.move_y = *y_out;
+        *buttons_out |= jfg::controls::aim_strafe_buttons(modern_in.aim_held, *x_out);
         jfg::controls::publish(modern_in);
         // The runtime reports +-1.0 as +-127; a real N64 stick tops out near +-80, which the game's tuning expects.
         *x_out *= 80.0f / 127.0f;

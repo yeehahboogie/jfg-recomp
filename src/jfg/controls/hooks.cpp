@@ -11,6 +11,7 @@
 #include "input_state.h"
 #include "free_camera.h"
 #include "aim.h"
+#include "aim_move.h"
 #include "recomp_input.h"
 
 namespace {
@@ -45,6 +46,7 @@ jfg::controls::AimState aim_state;   // offsets persist across calls in mouse mo
 bool aim_mouse_mode = false;
 uint32_t last_aim_frame = 0xFFFFFFFF;
 int16_t last_yaw_off = 0, last_pitch_off = 0; // for the debug log
+float aim_ticks = 2.f;                         // this frame's ticks, from controlGetManualAim
 
 bool scheme_modern() { return jfg::controls::settings().modern; }
 
@@ -164,6 +166,7 @@ extern "C" int jfg_manual_aim(uint8_t* rdram, recomp_context* ctx) {
                                        (int16_t)MEM_W(0x14, sp)};
     const gpr yaw_off_ptr = (gpr)(int32_t)MEM_W(0x18, sp), pitch_off_ptr = (gpr)(int32_t)MEM_W(0x1C, sp);
     const float ticks = read_f32(rdram, sp, 0x20);
+    aim_ticks = ticks;
 
     jfg::controls::AimTuning tuning{};
     for (int i = 0; i < 20; i++) tuning.rim_rate[i] = read_f32(rdram, rim_rate_table, 4 * i);
@@ -238,6 +241,22 @@ extern "C" int jfg_manual_aim(uint8_t* rdram, recomp_context* ctx) {
     return 1;
 }
 
+extern "C" void jfg_aim_move(uint8_t* rdram, recomp_context* ctx) {
+    // Animation select (obj, pd, ...) runs after the state handler and before facing -> velocity: walking while aiming
+    // sets the speeds here so both see them. Crouch-aim (state 5) keeps the original side-rolls.
+    const uint32_t pd = (uint32_t)ctx->r5;
+    if (!is_player0(pd)) return;
+    const gpr p = kseg0(pd);
+    constexpr int aim_state_id = 11;
+    if (MEM_BU(0x568, p) != aim_state_id) return;
+    const jfg::controls::ModernInput& in = jfg::controls::frame();
+    const jfg::controls::MoveOutput out =
+        jfg::controls::aim_move(read_f32(rdram, p, 0x04), read_f32(rdram, p, 0x10), in.move_x, in.move_y,
+                                (int16_t)MEM_H(0x11C, p), (int16_t)MEM_H(0x00, cam0), aim_ticks);
+    write_f32(rdram, p, 0x04, out.forward);
+    write_f32(rdram, p, 0x10, out.strafe);
+}
+
 namespace {
 // The free camera's pitch: after the dispatcher (and its water-line fix-ups) placed the follow camera, orbit it up or
 // down around the point it looks at. Undone at the next follow-camera entry.
@@ -271,11 +290,12 @@ extern "C" void jfg_controls_after_camera(uint8_t* rdram, recomp_context*) {
     const jfg::controls::ModernInput& in = jfg::controls::frame();
     std::fprintf(stderr,
                  "[controls] f=%u active=%d cam=%d idx=%d chr=%d state=%u facing=%04X orbit=%04X pan=%04X follow=%u "
-                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d fc=(%04X,%.2f,%.2f) ticks=%.1f aimoff=(%d,%d) base=%04X mm=%d\n",
+                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d fc=(%04X,%.2f,%.2f) ticks=%.1f aimoff=(%d,%d) base=%04X mm=%d speed=(%.2f,%.2f)\n",
                  frame_no++, f.active, camera_kind, MEM_B(0, p), MEM_B(1, p) & 3, MEM_BU(0x568, p),
                  (uint16_t)MEM_H(0x11C, p), (uint16_t)MEM_H(0x104, p), (uint16_t)MEM_H(0x10A, p), MEM_BU(0x10C, p),
                  (uint16_t)MEM_H(0x00, cam0), (uint16_t)MEM_H(0x02, cam0), read_f32(rdram, cam0, 0x0C), read_f32(rdram, cam0, 0x10),
                  read_f32(rdram, cam0, 0x14), read_f32(rdram, o, 0x0C), read_f32(rdram, o, 0x10), read_f32(rdram, o, 0x14), (uint16_t)MEM_H(0x00, o), in.stick_look_x, in.stick_look_y, in.mouse_dx,
                  in.mouse_dy, in.move_x, in.move_y, in.aim_held, (uint16_t)free_cam.yaw, free_cam.pitch, free_cam.idle,
-                 camera_ticks, last_yaw_off, last_pitch_off, (uint16_t)MEM_H(0x1E2, p), aim_mouse_mode);
+                 camera_ticks, last_yaw_off, last_pitch_off, (uint16_t)MEM_H(0x1E2, p), aim_mouse_mode,
+                 read_f32(rdram, p, 0x04), read_f32(rdram, p, 0x10));
 }

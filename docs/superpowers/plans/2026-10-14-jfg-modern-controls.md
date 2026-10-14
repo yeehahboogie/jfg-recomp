@@ -673,7 +673,7 @@ Expected per frame while R is held: `state=11`, the logged `yaw_off` reaches the
   ```
   Caps: forward speed −4.0 (forward) … +3.0 (back), strafe ±2.5. Approach rate 0.5 per tick, clamped so it never overshoots.
 
-- [ ] **Step 1: Failing tests** (`aim_move_test.cpp`):
+- [x] **Step 1: Failing tests** (`aim_move_test.cpp`):
   - `forward_when_camera_and_facing_agree`: move (0, 1), facing == cam_yaw + 0x8000 (Findings b relation), ticks 10: forward reaches −4.0 and strafe stays 0.
   - `strafe_right`: move (1, 0) gives strafe +2.5 and forward 0.
   - `back_capped`: move (0, −1) gives forward +3.0.
@@ -682,16 +682,16 @@ Expected per frame while R is held: `state=11`, the logged `yaw_off` reaches the
 
   The camera/facing relation in the first test must use the convention confirmed in Findings (b). If Findings (b) shows a different convention, write the test with the confirmed one.
 
-- [ ] **Step 2: Run, expect failure.**
+- [x] **Step 2: Run, expect failure.**
 
-- [ ] **Step 3: Implement `aim_move.cpp`.**
+- [x] **Step 3: Implement `aim_move.cpp`.**
   - World move direction = the stick rotated by the camera yaw. Use the same formula as the game's `heading = Arctanf(X, −Y) − cam->yaw`: `move_heading = atan2(x, -y)` in s16 minus `cam_yaw`, magnitude `min(|move|, 1)`.
   - Relative to the facing: `d = move_heading − facing`; `fwd_target = −cos(d)·mag·4.0`, clamped to [−4.0, +3.0]; `strafe_target = sin(d)·mag·2.5`.
   - Approach both at 0.5·ticks.
 
-- [ ] **Step 4: Run, expect `aim_move_test: OK`.**
+- [x] **Step 4: Run, expect `aim_move_test: OK`.**
 
-- [ ] **Step 5: Hooks.**
+- [x] **Step 5: Hooks.**
 
 One `[[patches.hook]]` per character at the animation-select entry, `func = "m015_05328"` / `"m016_05120"` / `"m017_04C50"`, with `text = "jfg_aim_move(rdram, ctx);"`.
 
@@ -701,11 +701,11 @@ One `[[patches.hook]]` per character at the animation-select entry, `func = "m01
   - `ticks`: if no argument carries it, use 2.0, the game's 30 fps tick (confirm from the `rate` argument in the debug log).
 - In state 5 (crouch-aim), set nothing; side-roll comes from C-left/C-right, which `to_n64_buttons` sets from the move x when |x| > 0.5 while crouch-aiming. Add `crouch_aim_roll` to the translation: `move_x > 0.5` gives C-right and `< −0.5` gives C-left, only when the frontend knows aim and crouch are held.
 
-- [ ] **Step 6: Build and check the debug log.**
+- [x] **Step 6: Build and check the debug log.**
 
 Script: Goldwood, then `304+3 R` and `304.5+2 R 1 0` (strafe right while aiming). Expected: state 11, strafe → +2.5, Juno's position moves sideways in the log (add `pos` x and z to the debug line). The animation is checked visually in Step 7.
 
-- [ ] **Step 7: Visual and sequence check (Review Focus 5).**
+- [x] **Step 7: Visual and sequence check (Review Focus 5).**
 
 `scripts/screenshots.sh build/diag/aimwalk 305 306 307` with the strafe script: Juno strafes while aiming with a strafe animation, not sliding.
 
@@ -713,7 +713,7 @@ Then run `304+1 R; 304.3+0.2 A` (jump pressed while aiming). Expected: no jump, 
 
 If the animation slides, add an animation fix in this task: set the walk/strafe animation the way the ground state does. Find where `m016_04934` (strafe helper) chooses the strafe animation and call the same path when |strafe| > |forward|.
 
-- [ ] **Step 8: Commit and push.**
+- [x] **Step 8: Commit and push.**
 
 ---
 
@@ -800,6 +800,12 @@ Recorded during execution: runtime-confirmed facts with log references.
   - Full right stick at the box edge rim-turns at ≈378 units/tick (the game's 380).
   - The pitch base stays stable, and releasing R returns to the free camera without a snap.
   - Zoom (weapon type 7) couldn't be exercised: no zoom weapon at the start of Goldwood. The user checks it in the playtest.
+- (h) Walking while aiming (Task 9, `build/diag/aimwalk/run.log`):
+  - **Strafe right.** `pd+0x10` = 2.5, moving toward −x with the facing fixed.
+  - **Forward.** `pd+0x04` = −4.0, moving toward +z. The game's collision holds it at −2.0 against a wall.
+  - **Back.** `pd+0x04` = +3.0.
+  - **Jump while aiming.** Pressing Jump changes nothing, and releasing R returns to state 0.
+  - **Animations.** Not visible in the over-the-shoulder camera (legs off screen), so they're a playtest item. Strafing also presses C-left/right, so the game's strafe helper picks its strafe animation.
 - (e) Free camera checks (Task 6 Step 5, `build/diag/fc/run.log`):
   - (a) PASS: right stick for 0.5 s while standing moves the orbit 0 → 0x3FFC (90°), and `facing` stays 0x8000 (f=30–42).
   - (b) PASS: running left after the look, the free camera holds the orbit until 1.5 s after the look ended, then the game swings it toward behind Juno (0x3FFC → 0xF757, f=87–162) and stops when she stops.

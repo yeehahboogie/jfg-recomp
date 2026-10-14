@@ -19,6 +19,8 @@ void jfg_free_camera_entry(uint8_t* rdram, recomp_context* ctx);
 void jfg_free_camera_heading(uint8_t* rdram, recomp_context* ctx);
 /* controlGetManualAim (0x8003AABC) entry: returns 1 when it handled the call (Modern), 0 to run the original. */
 int jfg_manual_aim(uint8_t* rdram, recomp_context* ctx);
+/* Character animation select (m015_05328, m016_05120, m017_04C50; obj, pd): walking while aiming. */
+void jfg_aim_move(uint8_t* rdram, recomp_context* ctx);
 /* Camera dispatcher before its epilogue (every path reaches 0x8002B954): the free camera's pitch, debug log. */
 void jfg_controls_after_camera(uint8_t* rdram, recomp_context* ctx);
 #ifdef __cplusplus
