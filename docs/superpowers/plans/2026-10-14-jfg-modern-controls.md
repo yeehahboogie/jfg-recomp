@@ -818,3 +818,61 @@ Recorded during execution: runtime-confirmed facts with log references.
   - Tuning notes for the playtest:
     - The game smooths the camera position toward the orbit in about 10 frames (~⅓ s), so mouse look has that lag.
     - The game aims slightly ahead of Juno's facing, so after looking sideways she sits off-centre (camera yaw ≈ orbit − 0xF00 at 90° to her facing).
+
+## Execution record
+
+Copied from the execution ledger (`.superpowers/sdd/…/progress.md`, git-ignored). Each ruling is followed by what it costs if wrong.
+
+### Rulings
+
+- Task 1: Ruling: the after-camera hook needs pd but the dispatcher reuses s0 at 0x8002B884 — added an entry hook (jfg_controls_camera_begin) that captures a1, and the log is filtered to g_frame.pd (the dispatcher also runs for pd 801DC790 in cutscenes) — cost if wrong: one extra hook per dispatcher call.
+- Task 2: Ruling: the bundled nlohmann json (lib/rt64/src/contrib) lacks NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT — hand-written to_json/from_json with j.value(key, default) over an X-macro field list; same behaviour (missing keys keep defaults, tested) — cost if wrong: none functional.
+- Task 2: Ruling: the spec keeps the existing mouse-sensitivity slider and its default, but that default is 0 (mouse look off) — default changed to 50, and a config saved before the modern controls (no "controls" object) with 0 is raised to 50 once; Task 10 makes the cursor capture Modern-only so Original players are unaffected — cost if wrong: a user who had deliberately chosen 0 gets 50 once.
+- Task 2: Ruling: menu rows use indices 10–16 placed after Joystick Deadzone (no renumbering of the Zelda rows 0–9); look speed is one slider (yaw °/s, pitch = 2/3 of yaw) instead of two — spec lists one "right-stick look speed" setting with both values — cost if wrong: a second slider later.
+- Task 3: Ruling: spec §5 says the translation reads the active key map (Normal or Expert); the plan forces the Normal map pointer (controlModeKeys = 0x800A18B4) while Modern is active, and the frontend emits Normal-map buttons — one fixed mapping, no cross-thread reads of game state — cost if wrong: with the in-game option set to Expert, Expert-only code paths that call frontGetTargetControl directly (aim-state walk on slots 7/8, back-pedal, half-turn) still run; H3 (Task 9) overrides aim walking in Modern.
+- Task 3: Ruling: spec lists Pause = Esc / Enter for keyboard; Esc stays the port's menu toggle (the only keyboard route to the settings), Enter is Start — cost if wrong: rebind Start in the controls menu.
+- Task 3: Ruling: mouse buttons and wheel are bound in the keyboard column (scanning a Keyboard binding accepts a mouse click or wheel step) — the frontend has two device columns only — cost if wrong: none functional.
+- Task 4: Ruling: the latch hook moved from joyRead entry to right after its osContGetReadData call (0x800431BC) — the frontend publishes inside osContGetReadData, so an entry latch would lag the modern input one frame behind the buttons — cost if wrong: none (still once per joyRead).
+- Task 4: Ruling: ModernInput.mouse_dx/dy are raw counts (new recomp::get_mouse_deltas_raw); the mouse-sensitivity setting is applied by the camera/aim consumers (Tasks 6, 8), not twice — cost if wrong: one scale factor.
+- Task 5: Ruling: sign convention — the plan/spec wrote "right decreases yaw" provisionally (to be confirmed in testing); the Task 1 log shows screen-right is world −x when looking +z and the orbit/camera yaw increase while turning right, so look right INCREASES yaw — tests written to that — cost if wrong: one sign flip, caught visually in Task 6.
+- Task 5: Ruling: spec is silent on pitch during drift-back; pitch eases back to level (exp, 2/s) while drifting, only when drift is on (test pitch_recenters_while_drifting) — a camera that swings back behind Juno but stays tilted would read as broken — cost if wrong: remove one line.
+- Task 6: Ruling: the plan's pitch formula e' = e + pitch·π/4 raises the camera when looking up (view tilts down) — backwards per its own Step 6 note — and leaves dead travel at the limits; pitch now maps −1..1 onto the elevation range [75°, −15°] around the look-at point (pure pitch_orbit, unit-tested) — cost if wrong: retune two limits.
+- Task 6: Ruling: pitch applied in the existing end-of-dispatcher hook (0x8002B954) instead of a new hook after the follow-camera call (L_8002B814) — the dispatcher's later fix-ups would otherwise change the written position and break next frame's exact restore — cost if wrong: the water-line fix-up doesn't see the pitched position.
+- Task 6: Ruling: resync on any frame gap in follow-camera steps (aim, cutscene, menu, other camera, controlPlayer not running), from the camera's on-screen position (orbit_heading(cam, player), unit-tested against two logged frames), instead of after_camera + cam yaw — cam yaw ≠ orbit (Findings b) and after_camera can't see frames where controlPlayer doesn't run — cost if wrong: none found.
+- Task 6: Ruling: mouse scale is 0.36 orbit units per count per sensitivity point (50 → ~0.1°/count) instead of the plan's ×3.0 (50 → 0.8°/count, a 360° turn per ~450 counts) — cost if wrong: one constant, tuned in the playtest.
+- Task 6: Ruling: the pitch orbit pivots on the camera's own look-at height (from its pitch and distance, 10–120 units, else 60) instead of a fixed +20 — keeps Juno framed while pitching — cost if wrong: fixed fallback.
+- Task 7: Ruling: the plan's aim_step interface lacked state the original uses (rim-rate smoothing pd+0x1E4/0x1E8, zoom velocity pd+0x1F0, smoothed offsets pd+0x1CE/0x1E0 for the rim test, box shrink lim·s, rim rate /zoom) — aim_step reproduces the decoded original exactly for the stick on the ±80 range, adds a persistent mouse mode, and takes the game's constants as AimTuning (read from RDRAM by the hook) — cost if wrong: stick aim differs from the original in an untested corner.
+- Task 7: Ruling: spec §4.3 writes pitchOff −= dy for the mouse; the original treats positive pitch as down (stick up gives negative offsets), so mouse down increases the pitch offset (non-inverted) — cost if wrong: one sign, visible in Task 8.
+- Task 7: Ruling: mouse mode is sticky (mouse movement selects it, stick deflection leaves it) so the mouse crosshair doesn't snap back to centre when the mouse stops — the original's stick mapping is absolute — cost if wrong: none for pad-only players.
+- Task 8: Ruling: with the zoom weapon out, H2 takes zoom from C-up/C-down (Modern's next/prev weapon = wheel/bumpers) and clears those bits from controlKeys/Dkeys/released so the weapon doesn't also cycle (weapon selection runs after the aim state in boyControl) — unverified at runtime (no zoom weapon at Goldwood start); a wheel notch is a one-frame press, so zoom per notch is small — cost if wrong: playtest item.
+- Task 8: Ruling: tuning constants are read from RDRAM; if any is not finite H2 logs once and runs the original (fail loudly, don't guess) — found while debugging a mis-computed address (0x800ABFCC, not 0x800AC3CC) that gave NaN rim rates.
+- Task 9: Ruling: crouch-aim side-rolls come from C-left/right inside the state handler (before any hook point), so the frontend presses C-left/C-right for |move_x| > 0.5 whenever aim is held (aim_strafe_buttons, tested) instead of only "aim and crouch held" — the frontend can't know the crouch state; in standing aim it also makes the game's strafe helper pick the strafe animation — cost if wrong: a stray C-left/right while aiming in the air (no effect found).
+- Task 9: Ruling: H3 sets speeds only in state 11; state 5 keeps the original side-rolls (spec §4.3 says states 11 and 5 — crouch-aim walking isn't in the original and would fight the rolls) — cost if wrong: add state 5 later.
+- Task 9: Ruling: animation quality while walking/aiming is left to the playtest (legs are off screen in the aim camera; Expert mode already walks in state 11) — cost if wrong: a follow-up animation fix.
+- Task 10: Ruling: the Original regression compares HEAD against the Task 1 build (observer-only hooks, scheme hard-wired Original) instead of a separate base-port build — building base-port needs fresh submodules and a full RT64 build, and base-port has no debug log to compare; aligned at the turn start, values match to small timing-induced drift — cost if wrong: an Original-only difference introduced by Task 1's observer hooks would go unseen (they only read memory).
+- Task 10: Ruling: the plan's C-pan expectation after the scheme flip can't be scripted (scripted RX feeds only the modern look input, not the physical right stick that Original maps to C-buttons); verified instead that active drops and the orbit stops following, and that the Original right-stick path is the unchanged code with suppression lifted every read — cost if wrong: a pad user would notice immediately in the playtest.
+- Task 10: Ruling: mouse capture requires Modern + sensitivity ≠ 0 + game input not disabled + game started + Modern applied to player 1 within the last 0.5 s (atomic timestamp from the gate) — releases in cutscenes, the game's pause and front-end menus and the port's menus — cost if wrong: the cursor stays captured up to 0.5 s after a menu opens.
+- Final: Ruling: reviewer's "Declined to judge" items (tuning constants, aim-walk animation quality, zoom at runtime, multiplayer/Floyd gating, boss variants without H3, Expert option + forced Normal map, focus-loss mouse release, Steam Deck Original cursor capture, back-pedal near enemies) stand as set aside — each is either a playtest item already on the checklist, unreachable (get_n64_input serves controller 0 only), deferred by the spec, or unchanged original/frontend behaviour — cost if wrong: found in the playtest.
+
+### Final review fixes
+
+- Final: fixed fresh install / bindings reset left every Modern action unbound (assign_all_mappings listed only N64/UI inputs) — runtime check: controls.json removed → JFG_FIRE written empty (RED) → after looping over every input, JFG_FIRE = Mouse left / RT, JFG_JUMP = Space / A (GREEN); suite 12/12.
+- Final: fixed Modern could not send C-left, C-right or L (menus read them directly) — translate_test RED (no c_left/c_right/l) → GREEN with three new bindable actions (keyboard ← → Tab, pad X Y LS); suite 12/12.
+- Final: fixed an input lock (disablejoy) handed the camera back to the game and snapped pitch/drift on release — gate_test RED (modern_applies false while input disabled) → GREEN: ownership no longer depends on input; hooks see zero input while it's disabled (FrameState::input_enabled); suite 12/12.
+- Final: fixed the pitch orbit had no collision — free_camera_test pull_in RED → GREEN; the hook casts the game's trackNearestIntersection (ABI checked with a floor probe: hit at y −102) and pulls the camera 8 units in front of the hit; ramp scenario: rayhits 0 → 24, camera stays in front of the ramp (build/diag/ray2); suite 12/12.
+
+### Deferred minors
+
+- g_frame.active never cleared when controlPlayer stops running (pause, some cutscenes); hooks may act on stale state.
+- follow-frame continuity counts joyRead calls; 0 or 2 successful joyReads in a frame would force a resync.
+- follow-camera entry restore runs for any pd; another entity's follow camera after player 1's would undo the pitch.
+- extra poll_inputs calls (pak helpers) overwrite mouse delta / wheel step between joyRead polls.
+- aim toggle state survives cutscenes, death, menus and scheme switches.
+- with mouse sensitivity 0 the mouse still counts as input (beats the stick, resets idle, selects sticky mouse mode).
+- loaded settings aren't validated (drift_delay 0 from hand-edited JSON loses yaw look).
+- Aim Sensitivity help text says it scales the stick; aim_mult applies to the mouse only.
+- spec items not implemented — gate log-once on unexpected character/state, right-stick response curve, CameraMode interface.
+- JFG_CONTROLS_SCHEME_FLIP_AT with a malformed value throws on the game thread (std::stod).
+- wheel notches in consecutive polls merge into one press edge (fast scrolling drops weapon steps).
+- Settings is a plain struct shared across threads (same pattern as the existing mouse_sensitivity).
+- plan Findings (b) says resyncs read pd+0x104; the code (per the Task 6 ruling) resyncs from the camera position.
