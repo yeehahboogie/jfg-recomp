@@ -1,5 +1,5 @@
-#include "ovl_patches.hpp"
-#include "../../RecompiledFuncs/recomp_overlays.inl"
+#include "jfg_overlays.hpp"
+#include "../../generated/funcs/recomp_overlays.inl"
 
 #include "librecomp/overlays.hpp"
 

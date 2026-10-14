@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <span>
 #include <string>
 #include <vector>
 #include "jfg_hooks.h"
@@ -15,6 +16,9 @@ extern "C" void unload_overlays(int32_t ram, uint32_t size) {
 }
 
 static std::vector<uint8_t> rdram(0x400000);
+static std::vector<uint8_t> fake_rom(0x1000);
+namespace recomp { std::span<const uint8_t> get_rom() { return fake_rom; } }
+namespace ultramodern { uint32_t get_remaining_audio_bytes() { return 0x1234; } }
 static void w(uint32_t vaddr, uint32_t v) { std::memcpy(&rdram[vaddr - 0x80000000u], &v, 4); }
 
 int main() {
@@ -32,5 +36,10 @@ int main() {
     assert(calls == want);
     w(0x80001000, 0x3C018041); w(0x80001004, 0x8C238000);             // lui at,0x8041 ; lw v1,-0x8000(at)
     assert(jfg_patched_hi_lo(rdram.data(), 0x80001000, 0x80001004) == 0x80408000);
+    fake_rom[0x454] = 0x01; fake_rom[0x455] = 0x09; fake_rom[0x456] = 0x08; fake_rom[0x457] = 0x2B;
+    assert(jfg_cart_word(0x10000454) == 0x0109082Bu);   // cartridge address -> ROM word, big-endian
+    assert(jfg_cart_word(0xB0000454) == 0x0109082Bu);   // kseg1 form of the same address
+    assert(jfg_cart_word(0x10000FFE) == 0);              // runs past the end of the ROM
+    assert(jfg_ai_length() == 0x1234);
     std::puts("jfg_hooks_test: OK");
 }

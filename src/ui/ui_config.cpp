@@ -438,6 +438,10 @@ struct DebugContext {
 
     void update_warp_names() {
         scene_names.clear();
+        if (zelda64::game_warps.empty()) {  // JFG has no warp table
+            entrance_names.clear();
+            return;
+        }
         for (const auto& scene : zelda64::game_warps[area_index].scenes) {
             scene_names.emplace_back(scene.name);
         }

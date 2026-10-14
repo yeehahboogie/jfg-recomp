@@ -35,7 +35,8 @@
 #include "zelda_support.h"
 #include "zelda_game.h"
 #include "recomp_data.h"
-#include "ovl_patches.hpp"
+#include "jfg_overlays.hpp"
+#include "jfg_hooks.h"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
 #include "librecomp/helpers.hpp"
@@ -45,7 +46,6 @@
 #include "../../patches/sound.h"
 #include "../../patches/misc_funcs.h"
 
-#include "mods/mm_recomp_dpad_builtin.h"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -144,7 +144,7 @@ ultramodern::renderer::WindowHandle create_window(ultramodern::gfx_callbacks_t::
     flags |= SDL_WINDOW_VULKAN;
 #endif
 
-    window = SDL_CreateWindow("Zelda 64: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960,  flags);
+    window = SDL_CreateWindow("Jet Force Gemini: Recompiled", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 1600, 960,  flags);
 #if defined(__linux__)
     SetImageAsIcon("icons/512.png",window);
     if (ultramodern::renderer::get_graphics_config().wm_option == ultramodern::renderer::WindowMode::Fullscreen) { // TODO: Remove once RT64 gets native fullscreen support on Linux
@@ -327,16 +327,12 @@ void reset_audio(uint32_t output_freq) {
     update_audio_converter();
 }
 
-extern RspUcodeFunc njpgdspMain;
 extern RspUcodeFunc aspMain;
 
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     switch (task->t.type) {
     case M_AUDTASK:
-        return aspMain;
-
-    case M_NJPEGTASK:
-        return njpgdspMain;
+        return aspMain;  // JFG's audio microcode, recompiled by RSPRecomp (recomp/aspMain.jfg.toml)
 
     default:
         fprintf(stderr, "Unknown task: %" PRIu32 "\n", task->t.type);
@@ -350,14 +346,13 @@ gpr get_entrypoint_address();
 // array of supported GameEntry objects
 std::vector<recomp::GameEntry> supported_games = {
     {
-        .rom_hash = 0xEF18B4A9E2386169ULL,
-        .internal_name = "ZELDA MAJORA'S MASK",
-        .game_id = u8"mm.n64.us.1.0",
-        .mod_game_id = "mm",
+        .rom_hash = 0x44830C263C2DE108ULL,           // XXH3-64 of Jet Force Gemini (USA) [!] (romtool info)
+        .internal_name = "JET FORCE GEMINI   ",       // the runtime compares 19 header characters
+        .game_id = u8"jfg.n64.us",
+        .mod_game_id = "jfg",
         .save_type = recomp::SaveType::Flashram,
-        .is_enabled = false,
-        .decompression_routine = zelda64::decompress_mm,
-        .has_compressed_code = true,
+        .is_enabled = true,
+        .has_compressed_code = false,
         .entrypoint_address = get_entrypoint_address(),
         .entrypoint = recomp_entrypoint,
     },
@@ -655,8 +650,6 @@ int main(int argc, char** argv) {
         recomp::register_game(game);
     }
 
-    recomp::mods::register_embedded_mod("mm_recomp_dpad_builtin", { (const uint8_t*)(mm_recomp_dpad_builtin), std::size(mm_recomp_dpad_builtin)});
-
     REGISTER_FUNC(recomp_get_window_resolution);
     REGISTER_FUNC(recomp_get_target_aspect_ratio);
     REGISTER_FUNC(recomp_get_target_framerate);
@@ -671,11 +664,8 @@ int main(int argc, char** argv) {
     REGISTER_FUNC(recomp_get_inverted_axes);
     REGISTER_FUNC(recomp_get_analog_inverted_axes);
     recompui::register_ui_exports();
-    recomputil::register_data_api_exports();
 
     zelda64::register_overlays();
-    zelda64::register_patches();
-    recomputil::init_extended_actor_data();
     zelda64::load_config();
 
     recomp::rsp::callbacks_t rsp_callbacks{

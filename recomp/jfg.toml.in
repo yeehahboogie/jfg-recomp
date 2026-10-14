@@ -28,3 +28,45 @@ text = "jfg_on_module_unload(rdram, (uint32_t)ctx->r19);"
 [[patches.hook]]
 func = "lazy_link"
 text = "jfg_on_lazy_link(rdram, (uint32_t)ctx->r31);"
+
+# ---- Hardware access the runtime can't run (from romtool's hardware audit, Task 7) ----
+
+# Game audio code reads AI_LEN_REG directly: 0x80001F2C `lw $t7, 4($t6)` with $t6 = 0xA4500000.
+# Replace the load with a nop and give $t7 the runtime's queued-audio byte count instead.
+[[patches.instruction]]
+func = "func_80001EF8"
+vram = 0x80001F2C
+value = 0x00000000
+
+[[patches.hook]]
+func = "func_80001EF8"
+before_vram = 0x80001F30
+text = "ctx->r15 = jfg_ai_length();"
+
+# Anti-tamper checks read a RAM word through uncached kseg1 (0xA02FB1F4 / 0xA02FE1C0). The runtime has
+# no kseg1; read the same RAM through kseg0 instead (lui $a0, 0xA02F -> lui $a0, 0x802F).
+[[patches.instruction]]
+func = "func_800841A0"
+vram = 0x800841A0
+value = 0x3C04802F
+
+[[patches.instruction]]
+func = "func_800841CC"
+vram = 0x800841CC
+value = 0x3C04802F
+
+# Anti-tamper checks read cartridge ROM words directly via PI (0xB0000454|a0, 0xB0000A5C|a0) and return
+# 1 when they match (they do for the supported ROM). Read the word from the loaded ROM instead.
+[[patches.hook]]
+func = "m111_00000"
+text = "ctx->r2 = jfg_cart_word((uint32_t)ctx->r4 | 0x10000454u) == 0x0109082Bu; return;"
+
+[[patches.hook]]
+func = "m133_00000"
+text = "ctx->r2 = jfg_cart_word((uint32_t)ctx->r4 | 0x10000A5Cu) == 0x1740FFF9u; return;"
+
+# CIC-6105 check: compares the RAM word at 0x800002E8 (read through kseg1) with what the 6105 boot
+# process leaves there, returning 1 on genuine hardware. The port has no CIC: answer as genuine hardware.
+[[patches.hook]]
+func = "m156_00000"
+text = "ctx->r2 = 1; return;"

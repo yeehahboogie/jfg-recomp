@@ -1,11 +1,14 @@
 // Keeps N64ModernRuntime's idea of where each JFG code module is loaded in sync with the game's own
 // module system, which loads, moves and unloads modules at will.
 #include <cstdio>
+#include <span>
 #include <cstdlib>
 #include <unordered_map>
 
 #include "jfg_hooks.h"
+#include "librecomp/game.hpp"
 #include "librecomp/overlays.hpp"
+#include "ultramodern/ultramodern.hpp"
 
 namespace {
 constexpr uint32_t desc_table_ptr = 0x800FEAA0;
@@ -62,4 +65,18 @@ extern "C" uint32_t jfg_patched_hi_lo(uint8_t* rdram, uint32_t hi_site, uint32_t
     uint32_t hi = read_word(rdram, hi_site) & 0xFFFF;
     uint32_t lo = read_word(rdram, lo_site) & 0xFFFF;
     return (hi << 16) + static_cast<int16_t>(lo);
+}
+
+extern "C" uint32_t jfg_cart_word(uint32_t cart_address) {
+    uint32_t offset = (cart_address & 0x1FFFFFFF) - 0x10000000u;
+    std::span<const uint8_t> rom = recomp::get_rom();
+    if (offset > rom.size() || rom.size() - offset < 4) {
+        return 0;
+    }
+    return (uint32_t{rom[offset]} << 24) | (uint32_t{rom[offset + 1]} << 16) |
+           (uint32_t{rom[offset + 2]} << 8) | uint32_t{rom[offset + 3]};
+}
+
+extern "C" uint32_t jfg_ai_length(void) {
+    return ultramodern::get_remaining_audio_bytes();
 }

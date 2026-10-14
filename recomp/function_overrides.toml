@@ -168,3 +168,116 @@ section = 0
 address = 0x800A7478
 value = 0x80074E34
 reason = "unused jump-table slot 0 at 0x800A7478; gives N64Recomp a sizable table"
+
+# --- more libultra functions n64sym has no signature for, identified from their call patterns (Task 12) ---
+# Naming them lets N64ModernRuntime's replacements take over; their internals (SI/PI/VI/thread plumbing,
+# which the runtime doesn't implement) are then never reached.
+[[name]]
+section = 0
+address = 0x80097080
+name = "osPiStartDma"          # osPiGetCmdQueue + osJamMesg/osSendMesg; called by the game's DMA routine
+
+[[name]]
+section = 0
+address = 0x8009A670
+name = "osEPiStartDma"         # same shape, called by the flash functions
+
+[[name]]
+section = 0
+address = 0x8009A620
+name = "osEPiReadIo"           # access lock, __osEPiRawReadIo, release
+
+[[name]]
+section = 0
+address = 0x80098A40
+name = "osCreateViManager"     # __osTimerServicesInit, event queues, __osViInit, osStartThread
+
+[[name]]
+section = 0
+address = 0x80098BB8
+name = "viMgrMain"             # VI manager thread: __osViSwapContext, __osTimerInterrupt
+
+[[name]]
+section = 0
+address = 0x8009A480
+name = "osDestroyThread"       # __osDequeueThread / __osDispatchThread (n64sym matched it but the name was ambiguous)
+
+[[name]]
+section = 0
+address = 0x80083B40
+name = "osFlashInit"           # builds the flash handle with base 0xA8000000
+
+[[name]]
+section = 0
+address = 0x80083C30
+name = "osFlashReadStatus"     # FLASH status command (0xD2000000), status read twice
+
+[[name]]
+section = 0
+address = 0x80083CC0
+name = "osFlashReadId"         # status, ID command (0xE1000000), 8-byte DMA
+
+[[name]]
+section = 0
+address = 0x80083DE0
+name = "osFlashAllErase"       # chip erase (0x3C000000) + execute (0x78000000), status polling
+
+[[name]]
+section = 0
+address = 0x80083EB0
+name = "osFlashSectorErase"    # sector erase (0x4B000000) + execute (0x78000000)
+
+[[name]]
+section = 0
+address = 0x80083F88
+name = "osFlashWriteBuffer"    # write-buffer mode (0xB4000000) + DMA to the chip
+
+[[name]]
+section = 0
+address = 0x8008400C
+name = "osFlashWriteArray"     # program page (0xA5000000 | page), status polling
+
+[[name]]
+section = 0
+address = 0x800840E0
+name = "osFlashReadArray"      # read-array mode (0xF0000000) + DMA from the chip
+
+[[name]]
+section = 0
+address = 0x80093790
+name = "osMotorInit"           # bank 0xFE probe, bank 0x80 probe, then builds motor data (CRC helper 0x80093688)
+
+[[name]]
+section = 0
+address = 0x80093520
+name = "__osMotorAccess"       # shared by the two rumble start/stop wrappers at 0x800934E0 / 0x80093500
+
+[[name]]
+section = 0
+address = 0x80093A90
+name = "osPfsInitPak"          # access lock, pak status, __osGetId, osPfsChecker
+
+[[name]]
+section = 0
+address = 0x80093B30
+name = "osPfsChecker"          # large consistency check over id/inode/dir; called by osPfsInitPak
+
+[[name]]
+section = 0
+address = 0x800938F0
+name = "osPfsFreeBlocks"       # __osCheckId + inode scan; called by osPfsAllocateFile
+
+[[name]]
+section = 0
+address = 0x80095160
+name = "osPfsAllocateFile"     # osPfsFindFile, free-block check, inode/dir writes
+
+[[name]]
+section = 0
+address = 0x80094DD8
+name = "osPfsReadWriteFile"    # walks inode pages via its helper 0x80094D00, reads/writes pak RAM
+
+[[name]]
+section = 0
+address = 0x800931E0
+name = "osPfsIsPlug"           # status request/read loop over all channels; implemented natively (runtime lacks it)
