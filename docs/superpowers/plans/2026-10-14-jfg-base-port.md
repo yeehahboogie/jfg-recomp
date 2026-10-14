@@ -963,7 +963,7 @@ Game behaviour being ported (main-segment functions `0x80052874` resolve, `0x800
 - `R_MIPS_HI16` + following `R_MIPS_LO16`: `ahl = (hi_imm << 16) + sign_extend(lo_imm)`; if `ahl != STUB_DATA`, add it (the game's own odd comparison at `0x80052BDC`); write `hi = (addr >> 16) + bit15`, `lo = addr & 0xFFFF`.
 - Lone `R_MIPS_LO16`: add the *unsigned* existing immediate, write `addr & 0xFFFF`.
 
-- [ ] **Step 1: Write the failing ROM-free tests**
+- [x] **Step 1: Write the failing ROM-free tests**
 
 `tools/romtool/tests/test_loader_ref.py`:
 ```python
@@ -1053,7 +1053,7 @@ def test_unloaded_targets_use_stand_ins():
     assert word_at(loaded, 16) == BASE2 + 0x40
 ```
 
-- [ ] **Step 2: Write the failing ROM-backed tests**
+- [x] **Step 2: Write the failing ROM-backed tests**
 
 `tools/romtool/tests/test_loader_ref_rom.py`:
 ```python
@@ -1097,16 +1097,16 @@ def test_alone_cross_module_calls_hit_stub(rom):
     for m in mods:
         image = link_module(rom, m, syms, main, len(mods), {m.index: 0x80400000})
         hits += sum(1 for off in range(0, m.text_size, 4)
-                    if struct.unpack_from(">I", image, off)[0] == (0x0C000000 | (STUB_FUNC >> 2)))
+                    if struct.unpack_from(">I", image, off)[0] == (0x0C000000 | ((STUB_FUNC >> 2) & 0x3FFFFFF)))
     assert hits > 0
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_loader_ref.py tools/romtool/tests/test_loader_ref_rom.py`
 Expected: FAIL — `No module named 'romtool.loader_ref'`.
 
-- [ ] **Step 4: Implement `loader_ref.py`**
+- [x] **Step 4: Implement `loader_ref.py`**
 
 `tools/romtool/romtool/loader_ref.py`:
 ```python
@@ -1179,12 +1179,12 @@ def link_module(rom: bytes, module: Module, symbols: list[int], main: MainSegmen
     return bytes(image)
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_loader_ref.py tools/romtool/tests/test_loader_ref_rom.py`
 Expected: 10 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/romtool
