@@ -36,6 +36,10 @@ constexpr float pitch_orbit_max_elevation = 1.3089969f;  // 75 degrees
 // -1 (look down) to the highest, 0 leaves it alone. The result never goes below floor_y.
 PitchOrbit pitch_orbit(Vec3 cam, Vec3 head, float floor_y, float pitch);
 
+// A ray from the head toward the pitched camera hit level geometry at `hit`: the camera position `margin` units in
+// front of it, on the same ray (at the head if the hit is closer than the margin).
+Vec3 pull_in(Vec3 head, Vec3 hit, float margin);
+
 // The orbit heading (pd+0x104 convention) of a camera at `cam` looking at a player at `player`.
 int16_t orbit_heading(Vec3 cam, Vec3 player);
 

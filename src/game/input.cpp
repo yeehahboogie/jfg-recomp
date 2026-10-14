@@ -440,6 +440,15 @@ const recomp::DefaultN64Mappings recomp::default_n64_keyboard_mappings = {
     .jfg_quick_4 = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_4}
     },
+    .jfg_c_left = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_LEFT}
+    },
+    .jfg_c_right = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_RIGHT}
+    },
+    .jfg_l = {
+        {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_TAB}
+    },
     .toggle_menu = {
         {.input_type = (uint32_t)InputType::Keyboard, .input_id = SDL_SCANCODE_ESCAPE}
     },
@@ -539,6 +548,15 @@ const recomp::DefaultN64Mappings recomp::default_n64_controller_mappings = {
     },
     .jfg_quick_4 = {
         {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_DPAD_LEFT},
+    },
+    .jfg_c_left = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_WEST},
+    },
+    .jfg_c_right = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_NORTH},
+    },
+    .jfg_l = {
+        {.input_type = (uint32_t)InputType::ControllerDigital, .input_id = SDL_CONTROLLER_BUTTON_LEFTSTICK},
     },
     .jfg_look_left = {
         {.input_type = (uint32_t)InputType::ControllerAnalog, .input_id = -(SDL_CONTROLLER_AXIS_RIGHTX + 1)},

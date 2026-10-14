@@ -134,5 +134,13 @@ int main() {
         const int16_t h = orbit_heading(Vec3{-65.7f, 54.3f, 1067.0f}, Vec3{19.0f, 3.7f, 1151.8f});
         assert(std::abs((int)(uint16_t)h - 0xE003) < 0x10);
     }
+    {   // pull_in: a ray from the head hit something; the camera goes just in front of it, on the same ray
+        const Vec3 head{0, 20, 0}, hit{0, 20, -100};
+        const Vec3 c = pull_in(head, hit, 8.f);
+        assert(c.x == 0.f && c.y == 20.f && std::fabs(c.z - -92.f) < 1e-4f);
+        // A hit closer than the margin leaves the camera at the head rather than behind it.
+        const Vec3 d = pull_in(head, Vec3{0, 20, -5}, 8.f);
+        assert(d.x == head.x && d.y == head.y && d.z == head.z);
+    }
     std::puts("free_camera_test: OK");
 }

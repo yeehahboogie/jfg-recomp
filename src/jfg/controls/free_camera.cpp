@@ -38,6 +38,14 @@ void free_camera_resync(FreeCameraState& s, int16_t heading, float drift_delay) 
 
 void free_camera_follow(FreeCameraState& s, int16_t heading) { s.yaw = heading; }
 
+Vec3 pull_in(Vec3 head, Vec3 hit, float margin) {
+    const float dx = hit.x - head.x, dy = hit.y - head.y, dz = hit.z - head.z;
+    const float len = std::sqrt(dx * dx + dy * dy + dz * dz);
+    if (len <= margin) return head;
+    const float k = (len - margin) / len;
+    return {head.x + dx * k, head.y + dy * k, head.z + dz * k};
+}
+
 int16_t orbit_heading(Vec3 cam, Vec3 player) {
     const double a = std::atan2(-(double)(player.x - cam.x), (double)(player.z - cam.z));
     return (int16_t)(uint16_t)(int32_t)std::lround(a * 32768.0 / 3.14159265358979323846);

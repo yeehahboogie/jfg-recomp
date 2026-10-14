@@ -9,7 +9,8 @@ struct PlayerView {
     int state;          // pd+0x568
     bool input_disabled;
 };
-// Modern controls apply only to player 1 on foot, while the game accepts input.
+// Modern controls apply to player 1 on foot. While the game has disabled input (an input lock, an interaction) they
+// still own the camera and aim, with no input (FrameState::input_enabled).
 bool modern_applies(const PlayerView& p, bool scheme_modern);
 
 // Per-frame state shared by the hooks (player 0 only).
@@ -18,6 +19,7 @@ struct FrameState {
     uint32_t pd = 0;       // player data address (KSEG0)
     uint32_t obj = 0;      // object address
     int camera_kind = 0;   // 0 unknown, 1 follow, 2 aim, 3 other
+    bool input_enabled = true; // the game accepts input this frame (disablejoy clear)
 };
 extern FrameState g_frame;
 

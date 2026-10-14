@@ -83,6 +83,12 @@ jfg::controls::LookParams look_params() {
             st.stick_pitch_dps / 90.f, st.invert_mouse_y, st.invert_stick_y};
 }
 
+// This frame's modern input, or none while the game has disabled input.
+const jfg::controls::ModernInput& game_input() {
+    static const jfg::controls::ModernInput none{};
+    return jfg::controls::g_frame.input_enabled ? jfg::controls::frame() : none;
+}
+
 bool is_player0(uint32_t pd) { return jfg::controls::g_frame.active && pd == jfg::controls::g_frame.pd; }
 }
 
@@ -98,7 +104,8 @@ extern "C" void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx) {
     const jfg::controls::PlayerView v{MEM_B(0x000, kseg0(pd)), MEM_B(0x001, kseg0(pd)) & 3, MEM_BU(0x568, kseg0(pd)),
                                       MEM_W(0, disablejoy) != 0};
     if (v.index == 0) {
-        jfg::controls::g_frame = {jfg::controls::modern_applies(v, scheme_modern()), pd, (uint32_t)obj, 0};
+        jfg::controls::g_frame = {jfg::controls::modern_applies(v, scheme_modern()), pd, (uint32_t)obj, 0,
+                                  !v.input_disabled};
         if (jfg::controls::g_frame.active) jfg::controls::mark_modern_active();
     }
 }
@@ -144,7 +151,7 @@ extern "C" void jfg_free_camera_heading(uint8_t* rdram, recomp_context* ctx) {
                                                                                   read_vec3(rdram, o, 0x0C)), delay);
     }
     last_follow_frame = game_frame;
-    const bool owned = jfg::controls::free_camera_step(free_cam, jfg::controls::frame(), look_params(), delay,
+    const bool owned = jfg::controls::free_camera_step(free_cam, game_input(), look_params(), delay,
                                                        camera_ticks / 60.f);
     if (owned || resync) {
         MEM_H(0x104, p) = free_cam.yaw;
@@ -200,7 +207,7 @@ extern "C" int jfg_manual_aim(uint8_t* rdram, recomp_context* ctx) {
         // The wheel / bumpers zoom; don't also cycle the weapon this frame (weapon selection runs after the aim state).
         for (int i = 0; i < 3; i++) MEM_W(4 * i, control_keys) = MEM_W(4 * i, control_keys) & ~(int32_t)(c_up | c_down);
     }
-    const jfg::controls::ModernInput& modern = jfg::controls::frame();
+    const jfg::controls::ModernInput& modern = game_input();
     in.mouse_dx = modern.mouse_dx;
     in.mouse_dy = modern.mouse_dy;
     in.stick_x = modern.stick_look_x;
@@ -250,7 +257,7 @@ extern "C" void jfg_aim_move(uint8_t* rdram, recomp_context* ctx) {
     const gpr p = kseg0(pd);
     constexpr int aim_state_id = 11;
     if (MEM_BU(0x568, p) != aim_state_id) return;
-    const jfg::controls::ModernInput& in = jfg::controls::frame();
+    const jfg::controls::ModernInput& in = game_input();
     const jfg::controls::MoveOutput out =
         jfg::controls::aim_move(read_f32(rdram, p, 0x04), read_f32(rdram, p, 0x10), in.move_x, in.move_y,
                                 (int16_t)MEM_H(0x11C, p), (int16_t)MEM_H(0x00, cam0), aim_ticks);
@@ -258,10 +265,39 @@ extern "C" void jfg_aim_move(uint8_t* rdram, recomp_context* ctx) {
     write_f32(rdram, p, 0x10, out.strafe);
 }
 
+extern "C" void func_80018808(uint8_t* rdram, recomp_context* ctx); // trackNearestIntersection
+
 namespace {
+// Casts a level ray with the game's trackNearestIntersection(obj, &from, &to, &result, 0x2000, 0), as the aim camera
+// does (0x8002C6C0). Runs on a scratch frame below the current stack, and the whole register context is restored so
+// the hooked function continues untouched. On a hit (nonzero return) the point is at result + 4.
+bool track_ray(uint8_t* rdram, recomp_context* ctx, uint32_t obj, jfg::controls::Vec3 from, jfg::controls::Vec3 to,
+               jfg::controls::Vec3* hit) {
+    const recomp_context saved = *ctx;
+    const gpr frame = ctx->r29 - 0x100; // args at +0x10/+0x14, from +0x20, to +0x30, result +0x40..+0xC0
+    write_vec3(rdram, frame, 0x20, from);
+    write_vec3(rdram, frame, 0x30, to);
+    for (int i = 0; i < 0x80; i += 4) MEM_W(0x40 + i, frame) = 0;
+    MEM_W(0x10, frame) = 0x2000;
+    MEM_W(0x14, frame) = 0;
+    ctx->r29 = frame;
+    ctx->r4 = (gpr)(int32_t)obj;
+    ctx->r5 = frame + 0x20;
+    ctx->r6 = frame + 0x30;
+    ctx->r7 = frame + 0x40;
+    func_80018808(rdram, ctx);
+    const bool got = (uint32_t)ctx->r2 != 0;
+    if (got) *hit = read_vec3(rdram, frame, 0x44);
+    *ctx = saved;
+    return got;
+}
+
+constexpr float pitch_wall_margin = 8.f; // keep the pitched camera this far in front of walls and ceilings
+int pitch_ray_hits = 0;                  // for the debug log
+
 // The free camera's pitch: after the dispatcher (and its water-line fix-ups) placed the follow camera, orbit it up or
 // down around the point it looks at. Undone at the next follow-camera entry.
-void apply_free_camera_pitch(uint8_t* rdram) {
+void apply_free_camera_pitch(uint8_t* rdram, recomp_context* ctx) {
     if (jfg::controls::g_frame.camera_kind != 1 || std::fabs(free_cam.pitch) < 0.01f) return;
     const gpr o = kseg0(jfg::controls::g_frame.obj);
     const jfg::controls::Vec3 cam = read_vec3(rdram, cam0, 0x0C), player = read_vec3(rdram, o, 0x0C);
@@ -272,31 +308,48 @@ void apply_free_camera_pitch(uint8_t* rdram) {
     if (!(target_y >= look_target_min && target_y <= look_target_max)) target_y = 60.f;
     const jfg::controls::Vec3 head{player.x, player.y + target_y, player.z};
     const jfg::controls::PitchOrbit orbit = jfg::controls::pitch_orbit(cam, head, player.y + 4.f, free_cam.pitch);
-    pitch_applied = {true, cam, orbit.pos, cam_pitch,
+    // The game's placement kept its own camera out of the level; keep the pitched one out too (walls, ceilings).
+    jfg::controls::Vec3 pos = orbit.pos, hit;
+    if (track_ray(rdram, ctx, jfg::controls::g_frame.obj, head, orbit.pos, &hit)) {
+        pos = jfg::controls::pull_in(head, hit, pitch_wall_margin);
+        pitch_ray_hits++;
+    }
+    pitch_applied = {true, cam, pos, cam_pitch,
                      (int16_t)(cam_pitch + (int32_t)std::lround(orbit.delta_elevation * (32768.f / 3.14159265f)))};
-    write_vec3(rdram, cam0, 0x0C, orbit.pos);
+    write_vec3(rdram, cam0, 0x0C, pos);
     MEM_H(0x02, cam0) = pitch_applied.written_pitch;
 }
 }
 
-extern "C" void jfg_controls_after_camera(uint8_t* rdram, recomp_context*) {
+extern "C" void jfg_controls_after_camera(uint8_t* rdram, recomp_context* ctx) {
     auto& f = jfg::controls::g_frame;
     const uint32_t pd = camera_pd;
     if (f.pd == 0 || pd != f.pd) return;
-    if (f.active) apply_free_camera_pitch(rdram);
+    if (f.active) apply_free_camera_pitch(rdram, ctx);
+    if (debug && f.active) { // once: check the ray cast against the floor under the player
+        static bool probed = false;
+        if (!probed) {
+            probed = true;
+            const jfg::controls::Vec3 p0 = read_vec3(rdram, kseg0(f.obj), 0x0C);
+            jfg::controls::Vec3 hit{};
+            const bool got = track_ray(rdram, ctx, f.obj, {p0.x, p0.y + 60.f, p0.z}, {p0.x, p0.y - 500.f, p0.z}, &hit);
+            std::fprintf(stderr, "[controls] ray probe from (%.1f,%.1f,%.1f) down: hit=%d at (%.1f,%.1f,%.1f)\n", p0.x,
+                         p0.y + 60.f, p0.z, got, hit.x, hit.y, hit.z);
+        }
+    }
     const int camera_kind = f.camera_kind;
     f.camera_kind = 0;
     if (!debug) return; // the log also runs in Original, for the regression comparison
     const gpr p = kseg0(pd), o = kseg0(f.obj);
     const jfg::controls::ModernInput& in = jfg::controls::frame();
     std::fprintf(stderr,
-                 "[controls] f=%u active=%d cam=%d idx=%d chr=%d state=%u facing=%04X orbit=%04X pan=%04X follow=%u "
-                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d fc=(%04X,%.2f,%.2f) ticks=%.1f aimoff=(%d,%d) base=%04X mm=%d speed=(%.2f,%.2f)\n",
-                 frame_no++, f.active, camera_kind, MEM_B(0, p), MEM_B(1, p) & 3, MEM_BU(0x568, p),
+                 "[controls] f=%u active=%d in=%d cam=%d idx=%d chr=%d state=%u facing=%04X orbit=%04X pan=%04X follow=%u "
+                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d fc=(%04X,%.2f,%.2f) ticks=%.1f aimoff=(%d,%d) base=%04X mm=%d speed=(%.2f,%.2f) rayhits=%d\n",
+                 frame_no++, f.active, f.input_enabled, camera_kind, MEM_B(0, p), MEM_B(1, p) & 3, MEM_BU(0x568, p),
                  (uint16_t)MEM_H(0x11C, p), (uint16_t)MEM_H(0x104, p), (uint16_t)MEM_H(0x10A, p), MEM_BU(0x10C, p),
                  (uint16_t)MEM_H(0x00, cam0), (uint16_t)MEM_H(0x02, cam0), read_f32(rdram, cam0, 0x0C), read_f32(rdram, cam0, 0x10),
                  read_f32(rdram, cam0, 0x14), read_f32(rdram, o, 0x0C), read_f32(rdram, o, 0x10), read_f32(rdram, o, 0x14), (uint16_t)MEM_H(0x00, o), in.stick_look_x, in.stick_look_y, in.mouse_dx,
                  in.mouse_dy, in.move_x, in.move_y, in.aim_held, (uint16_t)free_cam.yaw, free_cam.pitch, free_cam.idle,
                  camera_ticks, last_yaw_off, last_pitch_off, (uint16_t)MEM_H(0x1E2, p), aim_mouse_mode,
-                 read_f32(rdram, p, 0x04), read_f32(rdram, p, 0x10));
+                 read_f32(rdram, p, 0x04), read_f32(rdram, p, 0x10), pitch_ray_hits);
 }

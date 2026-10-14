@@ -2,7 +2,8 @@
 namespace jfg::controls {
 namespace {
 // N64 button bits (recomp_input.h DEFINE_N64_BUTTON_INPUTS).
-constexpr uint16_t A = 0x8000, B = 0x4000, Z = 0x2000, START = 0x1000, R = 0x0010, C_UP = 0x0008, C_DOWN = 0x0004;
+constexpr uint16_t A = 0x8000, B = 0x4000, Z = 0x2000, START = 0x1000, L = 0x0020, R = 0x0010, C_UP = 0x0008,
+                   C_DOWN = 0x0004, C_LEFT = 0x0002, C_RIGHT = 0x0001;
 constexpr uint16_t quick_bits[4] = {0x0800, 0x0100, 0x0400, 0x0200}; // D-pad up, right, down, left
 }
 
@@ -14,6 +15,9 @@ uint16_t to_n64_buttons(const Actions& a, bool aim_held_effective) {
     if (a.crouch) b |= B;
     if (a.weapon_next) b |= C_UP;
     if (a.weapon_prev) b |= C_DOWN;
+    if (a.c_left) b |= C_LEFT;
+    if (a.c_right) b |= C_RIGHT;
+    if (a.l) b |= L;
     for (int i = 0; i < 4; i++) {
         if (a.quick[i]) b |= quick_bits[i];
     }

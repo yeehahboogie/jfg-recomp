@@ -14,6 +14,6 @@ int64_t now_ms() {
 void mark_modern_active() { active_ms.store(now_ms()); }
 bool modern_recently_active(int grace_ms) { return now_ms() - active_ms.load() <= grace_ms; }
 bool modern_applies(const PlayerView& p, bool scheme_modern) {
-    return scheme_modern && p.index == 0 && (p.character & 3) != 3 && !p.input_disabled;
+    return scheme_modern && p.index == 0 && (p.character & 3) != 3;
 }
 }

@@ -297,29 +297,11 @@ void assign_mapping_complete(recomp::InputDevice device, recomp::GameInput input
 };
 
 void assign_all_mappings(recomp::InputDevice device, const recomp::DefaultN64Mappings& values) {
-    assign_mapping_complete(device, recomp::GameInput::A, values.a);
-    assign_mapping_complete(device, recomp::GameInput::B, values.b);
-    assign_mapping_complete(device, recomp::GameInput::Z, values.z);
-    assign_mapping_complete(device, recomp::GameInput::START, values.start);
-    assign_mapping_complete(device, recomp::GameInput::DPAD_UP, values.dpad_up);
-    assign_mapping_complete(device, recomp::GameInput::DPAD_DOWN, values.dpad_down);
-    assign_mapping_complete(device, recomp::GameInput::DPAD_LEFT, values.dpad_left);
-    assign_mapping_complete(device, recomp::GameInput::DPAD_RIGHT, values.dpad_right);
-    assign_mapping_complete(device, recomp::GameInput::L, values.l);
-    assign_mapping_complete(device, recomp::GameInput::R, values.r);
-    assign_mapping_complete(device, recomp::GameInput::C_UP, values.c_up);
-    assign_mapping_complete(device, recomp::GameInput::C_DOWN, values.c_down);
-    assign_mapping_complete(device, recomp::GameInput::C_LEFT, values.c_left);
-    assign_mapping_complete(device, recomp::GameInput::C_RIGHT, values.c_right);
-
-    assign_mapping_complete(device, recomp::GameInput::X_AXIS_NEG, values.analog_left);
-    assign_mapping_complete(device, recomp::GameInput::X_AXIS_POS, values.analog_right);
-    assign_mapping_complete(device, recomp::GameInput::Y_AXIS_NEG, values.analog_down);
-    assign_mapping_complete(device, recomp::GameInput::Y_AXIS_POS, values.analog_up);
-
-    assign_mapping_complete(device, recomp::GameInput::TOGGLE_MENU, values.toggle_menu);
-    assign_mapping_complete(device, recomp::GameInput::ACCEPT_MENU, values.accept_menu);
-    assign_mapping_complete(device, recomp::GameInput::APPLY_MENU, values.apply_menu);
+    // Every input, so a newly added one (such as the modern actions) can't be left unbound by a reset.
+    for (size_t i = 0; i < recomp::get_num_inputs(); i++) {
+        const recomp::GameInput input = static_cast<recomp::GameInput>(i);
+        assign_mapping_complete(device, input, recomp::get_default_mapping_for_input(values, input));
+    }
 };
 
 void zelda64::reset_input_bindings() {

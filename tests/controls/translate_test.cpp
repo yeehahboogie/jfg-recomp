@@ -25,6 +25,10 @@ int main() {
         a.quick[i] = true;
         assert(to_n64_buttons(a, false) == quick[i]);
     }
+    // Every N64 button is reachable in Modern: menus read C-left / C-right and L directly.
+    assert(to_n64_buttons(with(&Actions::c_left), false) == 0x0002);
+    assert(to_n64_buttons(with(&Actions::c_right), false) == 0x0001);
+    assert(to_n64_buttons(with(&Actions::l), false) == 0x0020);
     // Several actions combine.
     Actions a{};
     a.fire = a.jump = a.weapon_next = true;

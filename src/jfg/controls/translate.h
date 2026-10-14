@@ -6,6 +6,7 @@ struct Actions {
     bool fire = false, aim = false, jump = false, crouch = false;
     bool weapon_prev = false, weapon_next = false;
     bool quick[4] = {false, false, false, false}; // D-pad up, right, down, left
+    bool c_left = false, c_right = false, l = false; // strafe left / right (and menu functions), L (menus)
     bool start = false;
 };
 // The N64 buttons that perform these actions under the game's Normal key map. `aim_held_effective` is the aim

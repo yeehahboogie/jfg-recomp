@@ -51,6 +51,9 @@ namespace recomp {
         DEFINE_INPUT(JFG_QUICK_2, 0, "Quick weapon 2 (Modern)") \
         DEFINE_INPUT(JFG_QUICK_3, 0, "Quick weapon 3 (Modern)") \
         DEFINE_INPUT(JFG_QUICK_4, 0, "Quick weapon 4 (Modern)") \
+        DEFINE_INPUT(JFG_C_LEFT, 0, "Strafe left / C-left (Modern)") \
+        DEFINE_INPUT(JFG_C_RIGHT, 0, "Strafe right / C-right (Modern)") \
+        DEFINE_INPUT(JFG_L, 0, "L button (Modern)") \
         DEFINE_INPUT(JFG_LOOK_LEFT, 0, "Look left (Modern)") \
         DEFINE_INPUT(JFG_LOOK_RIGHT, 0, "Look right (Modern)") \
         DEFINE_INPUT(JFG_LOOK_UP, 0, "Look up (Modern)") \
@@ -147,6 +150,9 @@ namespace recomp {
         std::vector<InputField> jfg_quick_2;
         std::vector<InputField> jfg_quick_3;
         std::vector<InputField> jfg_quick_4;
+        std::vector<InputField> jfg_c_left;
+        std::vector<InputField> jfg_c_right;
+        std::vector<InputField> jfg_l;
         std::vector<InputField> jfg_look_left;
         std::vector<InputField> jfg_look_right;
         std::vector<InputField> jfg_look_up;
@@ -188,6 +194,9 @@ namespace recomp {
             case GameInput::JFG_QUICK_2: return defaults.jfg_quick_2;
             case GameInput::JFG_QUICK_3: return defaults.jfg_quick_3;
             case GameInput::JFG_QUICK_4: return defaults.jfg_quick_4;
+            case GameInput::JFG_C_LEFT: return defaults.jfg_c_left;
+            case GameInput::JFG_C_RIGHT: return defaults.jfg_c_right;
+            case GameInput::JFG_L: return defaults.jfg_l;
             case GameInput::JFG_LOOK_LEFT: return defaults.jfg_look_left;
             case GameInput::JFG_LOOK_RIGHT: return defaults.jfg_look_right;
             case GameInput::JFG_LOOK_UP: return defaults.jfg_look_up;

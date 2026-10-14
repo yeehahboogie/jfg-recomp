@@ -102,6 +102,9 @@ static uint16_t modern_n64_buttons(bool* aim_out) {
     a.quick[1] = input_held(GameInput::JFG_QUICK_2);
     a.quick[2] = input_held(GameInput::JFG_QUICK_3);
     a.quick[3] = input_held(GameInput::JFG_QUICK_4);
+    a.c_left = input_held(GameInput::JFG_C_LEFT);
+    a.c_right = input_held(GameInput::JFG_C_RIGHT);
+    a.l = input_held(GameInput::JFG_L);
     a.start = input_held(GameInput::START);
 
     static bool aim_was_held = false;
