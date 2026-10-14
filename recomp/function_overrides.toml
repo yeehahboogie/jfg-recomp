@@ -1,0 +1,40 @@
+# Manual corrections to romtool's function finder, plus human-readable names.
+# section: 0 = main segment (address = vram); N = module N (address = offset into its text).
+# Every add_start / merge entry must say why it exists.
+#
+# [[add_start]]  section = 0  address = 0x80001234  reason = "only reached through a function pointer"
+# [[merge]]      section = 12 address = 0x340       reason = "switch case after jr $t6, not a new function"
+# [[name]]       section = 0  address = 0x8003F500  name = "game_main"
+
+[[name]]
+section = 0
+address = 0x80000400
+name = "entrypoint"
+
+[[name]]
+section = 0
+address = 0x80052AB8
+name = "module_apply_reloc"
+
+[[name]]
+section = 0
+address = 0x80053D2C
+name = "module_load"
+
+# libultra's hand-written exception/thread assembly. It branches between internal labels across what
+# look like function boundaries, uses $k0/$k1 and RCP registers, and is never recompiled: N64ModernRuntime
+# replaces the exception and thread machinery. Task 7 checks each of these is named as runtime-handled.
+[[exempt]]
+section = 0
+address = 0x80073E80
+reason = "libultra exception/thread assembly: branches into 0x8007475C, a label in the next routine"
+
+[[exempt]]
+section = 0
+address = 0x80075020
+reason = "libultra exception handler: branches to labels at 0x80075664 / 0x80075760 in later routines"
+
+[[exempt]]
+section = 0
+address = 0x800755B0
+reason = "libultra exception helper (called via jal from the handler) that branches back into it"

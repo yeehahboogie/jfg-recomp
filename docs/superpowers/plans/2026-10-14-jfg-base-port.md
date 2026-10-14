@@ -1219,7 +1219,7 @@ Rules:
 - Scan: start a function at the first non-zero word; track the furthest forward branch target. End after the delay slot when no branch reaches past it and either the instruction is `jr $ra`, or it is another unconditional jump (`j`, `jr $reg`, `b`) followed by zero padding or a known start. A known start always ends the previous function. Addresses in `merge` never begin a function.
 - Invariants: spans sorted and non-overlapping; every call target is a span start; every branch inside a span targets the same span; each span's last non-zero instruction (or the one before it, when the delay slot is a nop) is a jump or call.
 
-- [ ] **Step 1: Extend `synth.py`**
+- [x] **Step 1: Extend `synth.py`**
 
 Append to `tools/romtool/tests/synth.py`:
 ```python
@@ -1242,7 +1242,7 @@ def addiu_sp(delta: int) -> int:
     return addiu(SP, SP, delta)
 ```
 
-- [ ] **Step 2: Write the failing ROM-free tests**
+- [x] **Step 2: Write the failing ROM-free tests**
 
 `tools/romtool/tests/test_functions.py`:
 ```python
@@ -1316,7 +1316,7 @@ def test_overrides_file(tmp_path):
     assert o.names == {(0, 0x8003F500): "game_main"}
 ```
 
-- [ ] **Step 3: Write the failing ROM-backed test**
+- [x] **Step 3: Write the failing ROM-backed test**
 
 `tools/romtool/tests/test_functions_rom.py`:
 ```python
@@ -1341,12 +1341,12 @@ def test_real_rom_functions(rom):
     print(f"\nfunctions: main {len(main)}, modules {len(funcs) - len(main)}")
 ```
 
-- [ ] **Step 4: Run tests to verify they fail**
+- [x] **Step 4: Run tests to verify they fail**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_functions.py tools/romtool/tests/test_functions_rom.py`
 Expected: FAIL — `No module named 'romtool.functions'`.
 
-- [ ] **Step 5: Implement `mips.py`**
+- [x] **Step 5: Implement `mips.py`**
 
 `tools/romtool/romtool/mips.py`:
 ```python
@@ -1397,7 +1397,7 @@ def is_call(w: int) -> bool:
     return is_jal(w) or w & 0xFC1F07FF == 0x00000009  # jal / jalr
 ```
 
-- [ ] **Step 6: Implement `functions.py`**
+- [x] **Step 6: Implement `functions.py`**
 
 `tools/romtool/romtool/functions.py`:
 ```python
@@ -1571,12 +1571,12 @@ address = 0x80053D2C
 name = "module_load"
 ```
 
-- [ ] **Step 7: Run ROM-free tests**
+- [x] **Step 7: Run ROM-free tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_functions.py`
 Expected: 10 passed.
 
-- [ ] **Step 8: Run the ROM-backed test and resolve every reported problem**
+- [x] **Step 8: Run the ROM-backed test and resolve every reported problem**
 
 Run: `tools/romtool/.venv/bin/pytest -q -s tools/romtool/tests/test_functions_rom.py`
 Expected first time: either PASS, or `RomError` listing problems. For each problem, inspect the code around it:
@@ -1590,7 +1590,7 @@ for a in range(v - 0x20, v + 0x40, 4):
 ```
 (for module sections use `rom[m.rom + offset]` from `read_modules`). Fix the scanner if a rule is wrong for a whole class of cases; add a `merge`/`add_start` entry **with a reason** for one-offs. Re-run until it passes. Record the final main/module function counts printed by the test in the commit message.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add tools/romtool recomp/function_overrides.toml
@@ -1827,6 +1827,7 @@ class Overrides:
     add_start: frozenset = frozenset()
     merge: frozenset = frozenset()
     names: dict = field(default_factory=dict)
+    exempt: frozenset = frozenset()  # (section, start): runtime-replaced assembly; body checks skipped
     hardware: dict = field(default_factory=dict)  # (section, address) -> decision
 
 
@@ -1840,6 +1841,7 @@ def load_overrides(path: str | Path) -> Overrides:
         add_start=frozenset(key(e) for e in data.get("add_start", [])),
         merge=frozenset(key(e) for e in data.get("merge", [])),
         names={key(e): e["name"] for e in data.get("name", [])},
+        exempt=frozenset(key(e) for e in data.get("exempt", [])),
         hardware={key(e): e["decision"] for e in data.get("hardware", [])},
     )
 ```
@@ -1848,7 +1850,7 @@ def load_overrides(path: str | Path) -> Overrides:
 
 `tools/romtool/tests/test_libultra_rom.py`:
 ```python
-import os
+import dataclasses
 from pathlib import Path
 
 import pytest
@@ -1875,10 +1877,12 @@ def test_libultra_and_hardware_audit(rom):
     names = run_n64sym(rom, main, _env())
     assert names, "n64sym found nothing"
     overrides = load_overrides(ROOT / "recomp/function_overrides.toml")
-    merged = type(overrides)(overrides.add_start, overrides.merge,
-                             {(0, a): n for a, n in names.items()} | overrides.names, overrides.hardware)
+    merged = dataclasses.replace(overrides, names={(0, a): n for a, n in names.items()} | overrides.names)
     funcs = find_all_functions(rom, merged)
     handled = runtime_handled_names(str(ROOT / "lib/N64Recomp/src/symbol_lists.cpp"))
+    by_start = {(f.section, f.start): f.name for f in funcs}
+    unhandled_exempt = [by_start[k] for k in sorted(merged.exempt) if by_start[k] not in handled]
+    assert unhandled_exempt == [], f"[[exempt]] functions must be runtime-handled libultra: {unhandled_exempt}" 
     mods = {m.index: m for m in read_modules(rom, read_module_tables(rom))}
     accesses = {}
     for section in {f.section for f in funcs}:
@@ -2807,6 +2811,7 @@ Expected: FAIL — `No module named romtool.cli`.
 ```python
 """Command line: verify / info / build-elf / disasm."""
 import argparse
+import dataclasses
 import struct
 import sys
 from pathlib import Path
@@ -2824,7 +2829,7 @@ def _with_libultra(rom: bytes, overrides: Overrides, n64sym: str | None) -> Over
         return overrides
     from .libultra import run_n64sym
     names = {(0, a): n for a, n in run_n64sym(rom, read_main_segment(rom), n64sym).items()}
-    return Overrides(overrides.add_start, overrides.merge, names | overrides.names, overrides.hardware)
+    return dataclasses.replace(overrides, names=names | overrides.names)
 
 
 def _hook_toml(program: Program) -> str:

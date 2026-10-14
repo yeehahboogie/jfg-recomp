@@ -94,3 +94,22 @@ def build_module_rom(symbols: list[int], modules: list[dict]) -> tuple[bytes, "M
 def main_seg():
     from romtool.layout import MainSegment
     return MainSegment(0x1000, 0x80000400, 0x8003F500, 0x80000450, 0x8009DA10, 0x800A0660, 0x800B0B50, 0x801059A0)
+
+
+SP, A0, RA = 29, 4, 31
+
+
+def beq(rs: int, rt: int, offset_words: int) -> int:
+    return (0x04 << 26) | (rs << 21) | (rt << 16) | (offset_words & 0xFFFF)
+
+
+def b(offset_words: int) -> int:
+    return beq(0, 0, offset_words)
+
+
+def jr(rs: int) -> int:
+    return (rs << 21) | 0x08
+
+
+def addiu_sp(delta: int) -> int:
+    return addiu(SP, SP, delta)
