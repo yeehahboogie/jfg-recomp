@@ -3187,11 +3187,11 @@ build/jfg_hooks_test
 Run: `chmod +x scripts/test-hooks.sh && scripts/test-hooks.sh`
 Expected: `jfg_hooks_test: OK`. (Write the test first and run it before Step 1's implementation exists to see it fail to link.)
 
-- [ ] **Step 2: Remove Majora's Mask specifics**
+- [x] **Step 2: Remove Majora's Mask specifics**
 
 Delete the files listed under **Remove** with `git rm`. Then `grep -rn "zelda\|Zelda\|majora\|mm_\|MM_" CMakeLists.txt src include | grep -v '^Binary'` and fix every remaining reference: rename the CMake target to `JFGRecompiled`, drop MM sources and the patches build (`PatchesLib`, `patches.toml` steps — the base port needs no MIPS patches; sub-project 4 will reintroduce the pipeline), point `RecompiledFuncs` at `generated/funcs/*.c`, add `src/jfg/jfg_hooks.cpp` and `include/` to the sources/includes, and generate RSP code from `generated/rsp/` (Task 13).
 
-- [ ] **Step 3: Game entry**
+- [x] **Step 3: Game entry**
 
 In `src/main/main.cpp`, replace the MM `GameEntry` with (field names per the pinned runtime's `librecomp/include/librecomp/game.hpp`; omit fields that don't exist there):
 ```cpp
@@ -3207,11 +3207,11 @@ recomp::GameEntry jfg_game {
 ```
 `recomp_entrypoint` is the function N64Recomp generated for the STT_FUNC at ROM 0x1000 (check `generated/funcs/funcs.h` for its exact name, e.g. `entrypoint`, and reference that). Update window title / launcher strings to "Jet Force Gemini" in `src/ui/ui_launcher.cpp` and assets text. Keep `register_overlays.cpp` including `generated/funcs/recomp_overlays.inl`.
 
-- [ ] **Step 4: Microcode mapping**
+- [x] **Step 4: Microcode mapping**
 
 In `get_rsp_microcode` (`src/main/main.cpp`), map `M_AUDTASK` to the recompiled JFG audio function from Task 13 (`aspMain`), keep graphics tasks going to RT64, and remove the MM JPEG mapping.
 
-- [ ] **Step 5: Hardware patches from the audit**
+- [x] **Step 5: Hardware patches from the audit**
 
 For every `[[hardware]] decision = "patch"` entry from Task 7, add the replacement to `recomp/jfg.toml.in` as a hook that performs the operation natively and returns:
 ```toml
@@ -3221,7 +3221,7 @@ text = "jfg_<what_it_does>(rdram, ctx); return;"
 ```
 with `jfg_<what_it_does>` implemented in `src/jfg/jfg_hooks.cpp` (declared in `include/jfg_hooks.h`) using the runtime's equivalent (e.g. Flash RAM → the functions in `librecomp/src/flash.cpp`; a CIC-6105 check → set the result register the way real hardware would answer). Write each one's expected behaviour in a comment citing the disassembly address. Functions that only need to do nothing go into `[patches] stubs` instead.
 
-- [ ] **Step 6: Build**
+- [x] **Step 6: Build**
 
 ```bash
 scripts/recompile.sh
@@ -3230,7 +3230,7 @@ cmake --build build --target JFGRecompiled
 ```
 Expected: links `build/JFGRecompiled`. Fix compile errors in our code; for errors inside generated code, trace back to the romtool/N64Recomp input that caused them (never hand-edit `generated/`).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add -A
@@ -3291,7 +3291,7 @@ mkdir -p generated/rsp
 Run: `scripts/recompile.sh`
 Expected: `generated/rsp/aspMain.cpp` exists. If RSPRecomp reports unhandled indirect branch targets, add them to `extra_indirect_branch_targets = [...]` (values printed in its message) and re-run; if it reports unsupported instructions, list them in `unsupported_instructions` only after confirming they're unreachable.
 
-- [ ] **Step 4: Build and commit**
+- [x] **Step 4: Build and commit**
 
 Add `generated/rsp/aspMain.cpp` to the build in `CMakeLists.txt`, rebuild (`cmake --build build --target JFGRecompiled`), then:
 ```bash
