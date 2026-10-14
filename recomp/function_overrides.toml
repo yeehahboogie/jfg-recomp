@@ -281,3 +281,49 @@ name = "osPfsReadWriteFile"    # walks inode pages via its helper 0x80094D00, re
 section = 0
 address = 0x800931E0
 name = "osPfsIsPlug"           # status request/read loop over all channels; implemented natively (runtime lacks it)
+
+# --- found by run-time crash + scheduler-data audit (functions touching libultra's internal queues) ---
+[[name]]
+section = 0
+address = 0x800759D0
+name = "osCreateThread"        # called by the game's main with (&thread, id, entry, arg, stack, pri); touches the run/active queues
+
+[[name]]
+section = 0
+address = 0x80072330
+name = "osCreatePiManager"     # PI queues + access queue, event mesg, creates and starts the PI manager thread
+
+[[name]]
+section = 0
+address = 0x800992C0
+name = "osViGetNextFramebuffer" # reads __osViNext under disabled interrupts (osViGetCurrentFramebuffer is its neighbour)
+
+[[name]]
+section = 0
+address = 0x80099C60
+name = "__osPiCreateAccessQueue" # n64sym can't tell the PI and SI copies apart; osEPiReadIo's calls identify this trio as PI
+
+[[name]]
+section = 0
+address = 0x80099CB0
+name = "__osPiGetAccess"
+
+[[name]]
+section = 0
+address = 0x80099CF4
+name = "__osPiRelAccess"
+
+[[name]]
+section = 0
+address = 0x8009A770
+name = "__osSiCreateAccessQueue"
+
+[[name]]
+section = 0
+address = 0x8009A804
+name = "__osSiRelAccess"
+
+[[name]]
+section = 0
+address = 0x800436C0
+name = "cic6105_challenge"     # game routine: CIC-6105 challenge via module 45's raw PIF access; replaced natively

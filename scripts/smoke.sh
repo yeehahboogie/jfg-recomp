@@ -4,7 +4,7 @@ set -uo pipefail
 cd "$(dirname "$0")/.."
 SECONDS_TO_RUN="${1:-90}"
 LOG=build/smoke.log
-JFG_DEBUG_MODULES=1 timeout "$SECONDS_TO_RUN" build/JFGRecompiled > "$LOG" 2>&1
+JFG_AUTOSTART=1 JFG_DEBUG_MODULES=1 timeout "$SECONDS_TO_RUN" build/JFGRecompiled > "$LOG" 2>&1
 status=$?
 fail=0
 [[ $status -eq 124 ]] || { echo "FAIL: exited early with status $status"; fail=1; }

@@ -34,6 +34,25 @@ int main() {
                                      "load 1F00000 80340000 900", "unload 80340000 900"};
     for (auto& c : calls) std::puts(c.c_str());
     assert(calls == want);
+    // The lazy linker's load path copies code, data and the import table in one DMA (module 36 in the game).
+    calls.clear();
+    jfg_on_dma(rdram.data(), 0x1F00000, 0x80350000, 0x800 + 0x100 + 0x40);
+    assert(calls == std::vector<std::string>{"load 1F00000 80350000 900"});
+    jfg_on_dma(rdram.data(), 0x1F00000, 0x80360000, 0x400);  // shorter than the code: not a module load
+    assert(calls.size() == 1);
+    jfg_on_module_unload(rdram.data(), 2);
+    // Empty descriptors (no code or data) share their ROM address with the next module: match the real one.
+    calls.clear();
+    w(0x800FEAAC, 5);
+    w(table + 32 * 3 + 4, 0x1F10000); w(table + 32 * 3 + 8, 0); w(table + 32 * 3 + 12, 0);      // module 3: empty
+    w(table + 32 * 4 + 4, 0x1F10000); w(table + 32 * 4 + 8, 0x200); w(table + 32 * 4 + 12, 0x20); // module 4
+    jfg_on_dma(rdram.data(), 0x1F10000, 0x80400000, 0x220);
+    assert(calls == std::vector<std::string>{"load 1F10000 80400000 220"});
+    // Memory reused without an unload the hook saw: the old module there is gone, so forget it first.
+    calls.clear();
+    jfg_on_dma(rdram.data(), 0x1F00000, 0x80400100, 0x900);   // module 2 over module 4's range
+    assert((calls == std::vector<std::string>{"unload 80400000 220", "load 1F00000 80400100 900"}));
+    jfg_on_module_unload(rdram.data(), 2);
     w(0x80001000, 0x3C018041); w(0x80001004, 0x8C238000);             // lui at,0x8041 ; lw v1,-0x8000(at)
     assert(jfg_patched_hi_lo(rdram.data(), 0x80001000, 0x80001004) == 0x80408000);
     fake_rom[0x454] = 0x01; fake_rom[0x455] = 0x09; fake_rom[0x456] = 0x08; fake_rom[0x457] = 0x2B;

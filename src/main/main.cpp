@@ -7,6 +7,8 @@
 #include <numeric>
 #include <stdexcept>
 #include <cinttypes>
+#include <chrono>
+#include <thread>
 
 #include "nfd.h"
 
@@ -720,6 +722,15 @@ int main(int argc, char** argv) {
 
     // Register the .rtz texture pack file format with the previous content type as its only allowed content type.
     recomp::mods::register_mod_container_type("rtz", std::vector{ texture_pack_content_type_id }, false);
+
+    // Development aid: JFG_AUTOSTART=1 starts the game straight from the launcher (smoke tests, debugging).
+    if (std::getenv("JFG_AUTOSTART") != nullptr) {
+        std::thread([]() {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+            recomp::start_game(supported_games[0].game_id);
+            recompui::hide_all_contexts();
+        }).detach();
+    }
 
     recomp::start(
         project_version,

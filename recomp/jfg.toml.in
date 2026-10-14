@@ -6,7 +6,7 @@ entrypoint = 0x80000400
 elf_path = "@GENERATED@/jfg.elf"
 output_func_path = "@GENERATED@/funcs"
 relocatable_sections_path = "@GENERATED@/relocatable_sections.txt"
-recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\""
+recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\""
 functions_per_output_file = 50
 
 [patches]
@@ -70,3 +70,8 @@ text = "ctx->r2 = jfg_cart_word((uint32_t)ctx->r4 | 0x10000A5Cu) == 0x1740FFF9u;
 [[patches.hook]]
 func = "m156_00000"
 text = "ctx->r2 = 1; return;"
+
+# CIC-6105 challenge: computed natively (no CIC or raw PIF access in the port). See src/jfg/cic_hook.cpp.
+[[patches.hook]]
+func = "cic6105_challenge"
+text = "jfg_cic_challenge(rdram, ctx); return;"

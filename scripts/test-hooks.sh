@@ -7,3 +7,5 @@ CXX="${CXX:-$(command -v clang++ || command -v g++)}"
 build/jfg_hooks_test
 "$CXX" -std=c++20 -Wall -Iinclude -Ilib/N64ModernRuntime/N64Recomp/include src/jfg/libultra_stubs.cpp tests/libultra_stubs_test.cpp -o build/libultra_stubs_test
 build/libultra_stubs_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/cic6105.cpp tests/cic6105_test.cpp -o build/cic6105_test
+build/cic6105_test

@@ -11,7 +11,7 @@ index fc06930..4579f5f 100644
      "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dzex2.cpp"
      "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_l3dex2.cpp"
 diff --git a/src/gbi/rt64_gbi.cpp b/src/gbi/rt64_gbi.cpp
-index 7006549..14801d6 100644
+index 7006549..720e61c 100644
 --- a/src/gbi/rt64_gbi.cpp
 +++ b/src/gbi/rt64_gbi.cpp
 @@ -11,6 +11,7 @@
@@ -36,7 +36,7 @@ index 7006549..14801d6 100644
      //     
 -    static std::array<GBISegment, 94> textSegments = {
 +    static std::array<GBISegment, 95> textSegments = {
-+            GBISegment{ 0x1630,     0x65CF14B22F96377EULL,  { &F3D_JFG } }, // Jet Force Gemini (USA)
++            GBISegment{ 0x1000,     0xA3A9584ECD0D87E7ULL,  { &F3D_JFG } }, // Jet Force Gemini (USA); longer spans reach game data that changes
              GBISegment{ 0x1408,     0x9C0926F5E466BE70ULL,  { &F3D_SDK_E } }, // Needs confirmation.
              GBISegment{ 0x1400,     0x34EAA6E921BCF1B2ULL,  { &F3D_SDK_F, &F3D_SDK_UNKNOWN_G, &F3D_SDK_UNKNOWN_H } }, // Needs confirmation.
              GBISegment{ 0x1408,     0x3E05E9BBE814C700ULL,  { &F3D_FIFO_SDK_E } }, // Needs confirmation.

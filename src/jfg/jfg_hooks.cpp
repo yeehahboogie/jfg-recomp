@@ -26,19 +26,33 @@ const bool debug = std::getenv("JFG_DEBUG_MODULES") != nullptr;
 
 extern "C" void jfg_on_dma(uint8_t* rdram, uint32_t rom, uint32_t ram, uint32_t size) {
     uint32_t table = read_word(rdram, desc_table_ptr);
+    if (debug) std::fprintf(stderr, "[jfg] dma rom %08X -> %08X size %X (module table %08X)\n", rom, ram, size, table);
     if (table == 0) {
         return; // module system not initialised yet
     }
     uint32_t count = read_word(rdram, desc_count);
     for (uint32_t i = 1; i < count; i++) {
         uint32_t entry = table + i * 32;
-        if (read_word(rdram, entry + 4) != rom || read_word(rdram, entry + 8) != size) {
+        // A DMA from the module's first byte loads its code. Load paths differ in how much else they copy
+        // along with it (code only; code + data + import table), but always at least the code. Empty
+        // descriptors share their ROM address with the next module, so they never match.
+        uint32_t text = read_word(rdram, entry + 8);
+        if (text == 0 || read_word(rdram, entry + 4) != rom || size < text) {
             continue;
         }
-        uint32_t image = read_word(rdram, entry + 8) + read_word(rdram, entry + 12);
-        if (auto it = loaded_modules.find(i); it != loaded_modules.end()) {
-            unload_overlays(static_cast<int32_t>(it->second.ram), it->second.size);
-            loaded_modules.erase(it);
+        uint32_t image = text + read_word(rdram, entry + 12);
+        // Whatever was registered where this module now sits is gone (the module itself included, if it
+        // moved), even when the game freed it by a path the unload hook doesn't see.
+        for (auto it = loaded_modules.begin(); it != loaded_modules.end();) {
+            bool overlaps = it->second.ram < ram + image && ram < it->second.ram + it->second.size;
+            if (it->first == i || overlaps) {
+                unload_overlays(static_cast<int32_t>(it->second.ram), it->second.size);
+                if (debug) std::fprintf(stderr, "[jfg] module %u unloaded from %08X (replaced)\n", it->first, it->second.ram);
+                it = loaded_modules.erase(it);
+            }
+            else {
+                ++it;
+            }
         }
         load_overlays(rom, static_cast<int32_t>(ram), image);
         loaded_modules[i] = {ram, image};
