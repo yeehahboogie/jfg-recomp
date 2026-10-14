@@ -3407,7 +3407,7 @@ Run `scripts/smoke.sh`. For each failure, read `build/smoke.log` and fix the roo
 - Crash with no message → run under `gdb -batch -ex run -ex bt build/JFGRecompiled`, map the generated function name back with `romtool disasm`.
 Commit each fix separately with a message naming the symptom and cause.
 
-- [ ] **Step 3: Get to Goldwood**
+- [x] **Step 3: Get to Goldwood**
 
 Play (or ask the user to play) through intro → file select → new game → Goldwood start with `JFG_DEBUG_MODULES=1` and fix whatever breaks the same way. Commit fixes.
 
