@@ -7,6 +7,9 @@
 #include "zelda_support.h"
 #include "promptfont.h"
 #include "ultramodern/config.hpp"
+#include "../jfg/controls/settings.h"
+#include <cmath>
+#include <cstdio>
 #include "ultramodern/ultramodern.hpp"
 #include "RmlUi/Core.h"
 
@@ -908,6 +911,57 @@ public:
         nav_help_model_handle = constructor.GetModelHandle();
     }
 
+    // Modern controls settings (src/jfg/controls/settings.h). Radio groups bind strings, ranges bind ints.
+    void bind_controls_settings(Rml::DataModelConstructor& constructor) {
+        using jfg::controls::settings;
+        auto radio = [&constructor](const char* name, bool jfg::controls::Settings::*field, const char* on, const char* off) {
+            constructor.BindFunc(name,
+                [field, on, off](Rml::Variant& out) { out = std::string(settings().*field ? on : off); },
+                [field, on, name](const Rml::Variant& in) {
+                    settings().*field = in.Get<std::string>() == on;
+                    general_model_handle.DirtyVariable(name);
+                });
+        };
+        radio("controls_scheme", &jfg::controls::Settings::modern, "Modern", "Original");
+        radio("controls_invert_mouse", &jfg::controls::Settings::invert_mouse_y, "On", "Off");
+        radio("controls_invert_stick", &jfg::controls::Settings::invert_stick_y, "On", "Off");
+        radio("controls_aim_button", &jfg::controls::Settings::aim_toggle, "Toggle", "Hold");
+
+        // Drift-back delay in tenths of a second; 0 means off (stored as -1).
+        constructor.BindFunc("controls_drift",
+            [](Rml::Variant& out) { out = settings().drift_delay < 0.f ? 0 : (int)std::lround(settings().drift_delay * 10.f); },
+            [](const Rml::Variant& in) {
+                const int tenths = in.Get<int>();
+                settings().drift_delay = tenths <= 0 ? -1.f : tenths / 10.f;
+                general_model_handle.DirtyVariable("controls_drift");
+                general_model_handle.DirtyVariable("controls_drift_text");
+            });
+        constructor.BindFunc("controls_drift_text", [](Rml::Variant& out) {
+            char text[16];
+            if (settings().drift_delay < 0.f) {
+                out = std::string("Off");
+            } else {
+                std::snprintf(text, sizeof(text), "%.1f s", settings().drift_delay);
+                out = std::string(text);
+            }
+        });
+        // Right-stick look speed in degrees per second; pitch follows at two thirds of yaw.
+        constructor.BindFunc("controls_stick_speed",
+            [](Rml::Variant& out) { out = (int)std::lround(settings().stick_yaw_dps); },
+            [](const Rml::Variant& in) {
+                settings().stick_yaw_dps = (float)in.Get<int>();
+                settings().stick_pitch_dps = settings().stick_yaw_dps * 2.f / 3.f;
+                general_model_handle.DirtyVariable("controls_stick_speed");
+            });
+        // Aim sensitivity as a percentage of look sensitivity.
+        constructor.BindFunc("controls_aim_mult",
+            [](Rml::Variant& out) { out = (int)std::lround(settings().aim_mult * 100.f); },
+            [](const Rml::Variant& in) {
+                settings().aim_mult = in.Get<int>() / 100.f;
+                general_model_handle.DirtyVariable("controls_aim_mult");
+            });
+    }
+
     void make_general_bindings(Rml::Context* context) {
         Rml::DataModelConstructor constructor = context->CreateDataModel("general_model");
         if (!constructor) {
@@ -926,6 +980,7 @@ public:
         bind_option(constructor, "camera_invert_mode", &control_options_context.camera_invert_mode);
         bind_option(constructor, "analog_cam_mode", &control_options_context.analog_cam_mode);
         bind_option(constructor, "analog_camera_invert_mode", &control_options_context.analog_camera_invert_mode);
+        bind_controls_settings(constructor);
 
         general_model_handle = constructor.GetModelHandle();
     }

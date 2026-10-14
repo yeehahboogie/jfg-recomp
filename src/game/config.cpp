@@ -5,6 +5,7 @@
 #include "zelda_support.h"
 #include "ultramodern/config.hpp"
 #include "librecomp/files.hpp"
+#include "../jfg/controls/settings.h"
 #include <filesystem>
 #include <fstream>
 #include <iomanip>
@@ -242,6 +243,7 @@ bool save_general_config(const std::filesystem::path& path) {
     config_json["analog_cam_mode"] = zelda64::get_analog_cam_mode();
     config_json["analog_camera_invert_mode"] = zelda64::get_analog_camera_invert_mode();
     config_json["debug_mode"] = zelda64::get_debug_mode_enabled();
+    config_json["controls"] = jfg::controls::settings();
 
     return save_json_with_backups(path, config_json);
 }
@@ -251,7 +253,14 @@ void set_general_settings_from_json(const nlohmann::json& config_json) {
     recomp::set_background_input_mode(from_or_default(config_json, "background_input_mode", recomp::BackgroundInputMode::On));
     recomp::set_rumble_strength(from_or_default(config_json, "rumble_strength", 25));
     recomp::set_gyro_sensitivity(from_or_default(config_json, "gyro_sensitivity", 50));
-    recomp::set_mouse_sensitivity(from_or_default(config_json, "mouse_sensitivity", is_steam_deck ? 50 : 0));
+    // Mouse look is part of the modern controls, so it is on by default. Configs saved before the modern controls
+    // existed (no "controls" object) carry the old default of 0; raise that once.
+    const bool had_controls = config_json.contains("controls");
+    recomp::set_mouse_sensitivity(from_or_default(config_json, "mouse_sensitivity", 50));
+    if (!had_controls && recomp::get_mouse_sensitivity() == 0) {
+        recomp::set_mouse_sensitivity(50);
+    }
+    jfg::controls::settings() = from_or_default(config_json, "controls", jfg::controls::Settings{});
     recomp::set_joystick_deadzone(from_or_default(config_json, "joystick_deadzone", 5));
     zelda64::set_autosave_mode(from_or_default(config_json, "autosave_mode", zelda64::AutosaveMode::On));
     zelda64::set_camera_invert_mode(from_or_default(config_json, "camera_invert_mode", zelda64::CameraInvertMode::InvertY));

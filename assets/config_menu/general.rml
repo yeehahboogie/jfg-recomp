@@ -106,9 +106,176 @@
                                 type="range"
                                 min="0"
                                 max="100"
-                                style="flex: 1; margin: 0dp; nav-down: #bg_input_enabled"
+                                style="flex: 1; margin: 0dp; nav-down: #controls_scheme_modern"
                                 data-value="joystick_deadzone"
                             />
+                        </div>
+                    </div>
+
+                    <!-- control scheme -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(10)">
+                        <label class="config-option__title">Control Scheme</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(10)"
+                                name="controls_scheme"
+                                data-checked="controls_scheme"
+                                value="Modern"
+                                id="controls_scheme_modern"
+                                style="nav-up: #joystick_deadzone_input; nav-down: #controls_drift_input"
+                            />
+                            <label class="config-option__tab-label" for="controls_scheme_modern">Modern</label>
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(10)"
+                                name="controls_scheme"
+                                data-checked="controls_scheme"
+                                value="Original"
+                                id="controls_scheme_original"
+                                style="nav-up: #joystick_deadzone_input; nav-down: #controls_drift_input"
+                            />
+                            <label class="config-option__tab-label" for="controls_scheme_original">Original</label>
+                        </div>
+                    </div>
+                    <!-- camera drift-back -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(11)">
+                        <label class="config-option__title">Camera Drift-Back</label>
+                        <div class="config-option__range-wrapper config-option__list">
+                            <label class="config-option__range-label">{{controls_drift_text}}</label>
+                            <input
+                                class="nav-vert"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(11)"
+                                id="controls_drift_input"
+                                type="range"
+                                min="0"
+                                max="50"
+                                style="flex: 1; margin: 0dp; nav-up: #controls_scheme_modern; nav-down: #controls_stick_speed_input"
+                                data-value="controls_drift"
+                            />
+                        </div>
+                    </div>
+                    <!-- stick look speed -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(12)">
+                        <label class="config-option__title">Stick Look Speed</label>
+                        <div class="config-option__range-wrapper config-option__list">
+                            <label class="config-option__range-label">{{controls_stick_speed}}°/s</label>
+                            <input
+                                class="nav-vert"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(12)"
+                                id="controls_stick_speed_input"
+                                type="range"
+                                min="30"
+                                max="360"
+                                style="flex: 1; margin: 0dp; nav-up: #controls_drift_input; nav-down: #controls_aim_mult_input"
+                                data-value="controls_stick_speed"
+                            />
+                        </div>
+                    </div>
+                    <!-- aim sensitivity -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(13)">
+                        <label class="config-option__title">Aim Sensitivity</label>
+                        <div class="config-option__range-wrapper config-option__list">
+                            <label class="config-option__range-label">{{controls_aim_mult}}%</label>
+                            <input
+                                class="nav-vert"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(13)"
+                                id="controls_aim_mult_input"
+                                type="range"
+                                min="10"
+                                max="100"
+                                style="flex: 1; margin: 0dp; nav-up: #controls_stick_speed_input; nav-down: #controls_invert_mouse_off"
+                                data-value="controls_aim_mult"
+                            />
+                        </div>
+                    </div>
+                    <!-- invert mouse y -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(14)">
+                        <label class="config-option__title">Invert Mouse Y</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(14)"
+                                name="controls_invert_mouse"
+                                data-checked="controls_invert_mouse"
+                                value="Off"
+                                id="controls_invert_mouse_off"
+                                style="nav-up: #controls_aim_mult_input; nav-down: #controls_invert_stick_off"
+                            />
+                            <label class="config-option__tab-label" for="controls_invert_mouse_off">Off</label>
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(14)"
+                                name="controls_invert_mouse"
+                                data-checked="controls_invert_mouse"
+                                value="On"
+                                id="controls_invert_mouse_on"
+                                style="nav-up: #controls_aim_mult_input; nav-down: #controls_invert_stick_off"
+                            />
+                            <label class="config-option__tab-label" for="controls_invert_mouse_on">On</label>
+                        </div>
+                    </div>
+                    <!-- invert stick y -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(15)">
+                        <label class="config-option__title">Invert Stick Y</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(15)"
+                                name="controls_invert_stick"
+                                data-checked="controls_invert_stick"
+                                value="Off"
+                                id="controls_invert_stick_off"
+                                style="nav-up: #controls_invert_mouse_off; nav-down: #controls_aim_hold"
+                            />
+                            <label class="config-option__tab-label" for="controls_invert_stick_off">Off</label>
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(15)"
+                                name="controls_invert_stick"
+                                data-checked="controls_invert_stick"
+                                value="On"
+                                id="controls_invert_stick_on"
+                                style="nav-up: #controls_invert_mouse_off; nav-down: #controls_aim_hold"
+                            />
+                            <label class="config-option__tab-label" for="controls_invert_stick_on">On</label>
+                        </div>
+                    </div>
+                    <!-- aim button -->
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(16)">
+                        <label class="config-option__title">Aim Button</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(16)"
+                                name="controls_aim_button"
+                                data-checked="controls_aim_button"
+                                value="Hold"
+                                id="controls_aim_hold"
+                                style="nav-up: #controls_invert_stick_off; nav-down: #bg_input_enabled"
+                            />
+                            <label class="config-option__tab-label" for="controls_aim_hold">Hold</label>
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(16)"
+                                name="controls_aim_button"
+                                data-checked="controls_aim_button"
+                                value="Toggle"
+                                id="controls_aim_toggle"
+                                style="nav-up: #controls_invert_stick_off; nav-down: #bg_input_enabled"
+                            />
+                            <label class="config-option__tab-label" for="controls_aim_toggle">Toggle</label>
                         </div>
                     </div>
 
@@ -124,7 +291,7 @@
                                 data-checked="background_input_mode"
                                 value="On"
                                 id="bg_input_enabled"
-                                style="nav-up: #joystick_deadzone_input; nav-down: #autosave_enabled"
+                                style="nav-up: #controls_aim_hold; nav-down: #autosave_enabled"
                             />
                             <label class="config-option__tab-label" for="bg_input_enabled">On</label>
 
@@ -136,7 +303,7 @@
                                 data-checked="background_input_mode"
                                 value="Off"
                                 id="bg_input_disabled"
-                                style="nav-up: #joystick_deadzone_input; nav-down: #autosave_disabled"
+                                style="nav-up: #controls_aim_toggle; nav-down: #autosave_disabled"
                             />
                             <label class="config-option__tab-label" for="bg_input_disabled">Off</label>
                         </div>
@@ -325,10 +492,7 @@
                         <b>Note: To recalibrate controller gyro, set the controller down on a still, flat surface for 5 seconds.</b>
                     </p>
                     <p data-if="cur_config_index == 3">
-                        Controls the sensitivity of mouse aiming when using items in first person. <b>Setting this to zero will disable mouse aiming.</b>
-                        <br />
-                        <br />
-                        <b>Note: This option does not allow mouse buttons to activate items. Mouse aiming is intended to be used with inputs that are mapped to mouse movement, such as gyro on Steam Deck.</b>
+                        Controls the speed of mouse look and mouse aiming with the <b>Modern</b> control scheme. <b>Setting this to zero will disable the mouse.</b>
                     </p>
                     <p data-if="cur_config_index == 4">
                         Applies a deadzone to joystick inputs.
@@ -361,6 +525,27 @@
                     </p>
                     <p data-if="cur_config_index == 9">
                         Inverts the camera controls for the analog camera if it's enabled. <b>None</b> is the default.
+                    </p>
+                    <p data-if="cur_config_index == 10">
+                        <b>Modern</b>: a free camera on the right stick or mouse, aiming with the camera, and walking while aiming. <b>Original</b>: the N64 controls, unchanged.
+                    </p>
+                    <p data-if="cur_config_index == 11">
+                        How long the camera waits after you stop moving it before it swings back behind your character. <b>Off</b> keeps the camera where you leave it.
+                    </p>
+                    <p data-if="cur_config_index == 12">
+                        How fast the right stick turns the camera at full tilt. Up and down turn at two thirds of this speed.
+                    </p>
+                    <p data-if="cur_config_index == 13">
+                        Mouse and stick speed while aiming, as a percentage of the normal look speed.
+                    </p>
+                    <p data-if="cur_config_index == 14">
+                        Inverts vertical mouse look and aiming.
+                    </p>
+                    <p data-if="cur_config_index == 15">
+                        Inverts vertical right-stick look and aiming.
+                    </p>
+                    <p data-if="cur_config_index == 16">
+                        <b>Hold</b>: aim while the aim button is held. <b>Toggle</b>: press once to aim, again to stop.
                     </p>
                 </div>
             </div>

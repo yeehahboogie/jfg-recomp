@@ -6,6 +6,7 @@
 #include "recomp.h"
 #include "jfg_controls_hooks.h"
 #include "gate.h"
+#include "settings.h"
 
 namespace {
 const bool debug = std::getenv("JFG_DEBUG_CONTROLS") != nullptr;
@@ -14,7 +15,7 @@ constexpr gpr cam0 = (gpr)(int32_t)0x800FA4D0;       // camGetListPtr() (0x80041
 uint32_t frame_no = 0;
 uint32_t camera_pd = 0; // dispatcher's a1, captured at entry (it reuses s0 before returning)
 
-bool scheme_modern() { return false; } // replaced by settings in Task 2
+bool scheme_modern() { return jfg::controls::settings().modern; }
 
 gpr kseg0(uint32_t addr) { return (gpr)(int32_t)addr; }
 

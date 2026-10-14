@@ -243,7 +243,7 @@ git commit -m "Controls: gate, hooks scaffolding and JFG_DEBUG_CONTROLS log" && 
   - `Settings& settings()`
   - `void to_json(nlohmann::json&, const Settings&)`, `void from_json(const nlohmann::json&, Settings&)` (missing keys keep the defaults)
 
-- [ ] **Step 1: Failing test**
+- [x] **Step 1: Failing test**
 
 `tests/controls/settings_test.cpp`: round-trip a non-default `Settings` through JSON, check that every field survives, and check that `from_json` of `{}` leaves the defaults. Assertions:
 ```cpp
@@ -261,13 +261,13 @@ build/settings_test
 ```
 Before writing the line, find the json include directory with `find lib include -name json.hpp -path "*json/json.hpp" | head -1`, then use that directory's parent as `-I` (the frontend includes `json/json.hpp`). Use only that one path in the compile line.
 
-- [ ] **Step 2: Run, expect a compile failure.**
+- [x] **Step 2: Run, expect a compile failure.**
 
-- [ ] **Step 3: Implement `settings.{h,cpp}`** with `NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Settings, modern, camera_mode, drift_delay, stick_yaw_dps, stick_pitch_dps, aim_mult, invert_mouse_y, invert_stick_y, aim_toggle)` and a `static Settings g;` returned by `settings()`.
+- [x] **Step 3: Implement `settings.{h,cpp}`** with `NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE_WITH_DEFAULT(Settings, modern, camera_mode, drift_delay, stick_yaw_dps, stick_pitch_dps, aim_mult, invert_mouse_y, invert_stick_y, aim_toggle)` and a `static Settings g;` returned by `settings()`.
 
-- [ ] **Step 4: Run, expect `settings_test: OK`.**
+- [x] **Step 4: Run, expect `settings_test: OK`.**
 
-- [ ] **Step 5: Save and load.**
+- [x] **Step 5: Save and load.**
 
 In `src/game/config.cpp`:
 - `save_general_config`: add `config_json["controls"] = jfg::controls::settings();`
@@ -275,7 +275,7 @@ In `src/game/config.cpp`:
 
 Follow the existing `from_or_default` pattern (around lines 231–263).
 
-- [ ] **Step 6: Menu rows.**
+- [x] **Step 6: Menu rows.**
 
 In `src/ui/ui_config.cpp`, bind with the same `constructor.BindFunc` getter/setter pattern used for `mouse_sensitivity` (search `general_model_handle`):
 - `controls_modern` (radio Modern/Original);
@@ -289,9 +289,9 @@ Setters write `jfg::controls::settings()` and call `general_model_handle.DirtyVa
 
 In `assets/config_menu/general.rml`, add one `config-option` block per setting after the Joystick Deadzone row. Copy the existing radio and range markup, with new `set_cur_config_index(N)` numbers continuing the sequence, and fix the `nav-up`/`nav-down` ids of the rows before and after.
 
-- [ ] **Step 7: Wire the scheme.** In `hooks.cpp`, `scheme_modern()` returns `jfg::controls::settings().modern`.
+- [x] **Step 7: Wire the scheme.** In `hooks.cpp`, `scheme_modern()` returns `jfg::controls::settings().modern`.
 
-- [ ] **Step 8: Build and check that the settings persist.**
+- [x] **Step 8: Build and check that the settings persist.**
 
 Build. Run once with `JFG_AUTOSTART=1` for 10 s:
 - `python3 -c "import json; print(json.load(open('build/appdata/general.json'))['controls'])"` prints the defaults (`modern: True`, `drift_delay: 1.5`, ...).
@@ -299,7 +299,7 @@ Build. Run once with `JFG_AUTOSTART=1` for 10 s:
 
 The menu rows themselves are checked by the user in Task 11 (they need clicks).
 
-- [ ] **Step 9: Commit and push.**
+- [x] **Step 9: Commit and push.**
 
 ---
 
