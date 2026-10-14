@@ -52,3 +52,45 @@ def make_layout_rom() -> bytearray:
     # audio task setup: start of the audio microcode = end of CPU code
     place(b, 0x80002380, lui(T5, 0x800A)); place(b, 0x80002390, addiu(T5, T5, -0x25F0))
     return b
+
+
+def jal(target: int) -> int:
+    return (0x03 << 26) | ((target >> 2) & 0x3FFFFFF)
+
+
+def lw(rt: int, imm: int, base: int) -> int:
+    return (0x23 << 26) | (base << 21) | (rt << 16) | (imm & 0xFFFF)
+
+
+def entry(word0: int, offset: int, rtype: int, kind: int) -> tuple[int, int]:
+    """One relocation entry as stored in the ROM."""
+    return word0, (offset << 8) | (rtype << 4) | kind
+
+
+def build_module_rom(symbols: list[int], modules: list[dict]) -> tuple[bytes, "ModuleTables"]:
+    """Lay out a symbol table, descriptors and module images the way the game's ROM does.
+
+    Each module dict has: text (bytes), data (bytes), bss (int), imports and locals (lists of entry()).
+    """
+    from romtool.layout import ModuleTables
+    symtab = 0x100
+    desc = symtab + 4 * len(symbols)
+    image = desc + 32 * len(modules)
+    blobs, offset = [], 0
+    buf = bytearray(image)
+    for i, s in enumerate(symbols):
+        struct.pack_into(">I", buf, symtab + 4 * i, s)
+    for i, m in enumerate(modules):
+        imp = b"".join(struct.pack(">II", *e) for e in m["imports"])
+        loc = b"".join(struct.pack(">II", *e) for e in m["locals"])
+        struct.pack_into(">IIIIIHHII", buf, desc + 32 * i, 0, offset, len(m["text"]), len(m["data"]),
+                         m["bss"], len(imp), len(loc), 0, 0)
+        blob = m["text"] + m["data"] + imp + loc
+        blobs.append(blob)
+        offset += len(blob)
+    return bytes(buf) + b"".join(blobs), ModuleTables(symtab, desc, image)
+
+
+def main_seg():
+    from romtool.layout import MainSegment
+    return MainSegment(0x1000, 0x80000400, 0x8003F500, 0x80000450, 0x8009DA10, 0x800A0660, 0x800B0B50, 0x801059A0)

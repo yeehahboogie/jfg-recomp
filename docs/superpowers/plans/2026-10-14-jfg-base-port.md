@@ -581,7 +581,7 @@ Format reminder (spec §2): descriptor = `u32 runtime_vram, u32 rom_offset_from_
 
 Deviation from spec §4 noted deliberately: the spec allows allow-listing unknown relocation entries. The ROM is pinned by MD5 and Step 7 proves it contains no unknown entries, so that path can never run; it is not implemented (YAGNI). Unknown entries stay hard errors.
 
-- [ ] **Step 1: Extend `synth.py`**
+- [x] **Step 1: Extend `synth.py`**
 
 Append to `tools/romtool/tests/synth.py`:
 ```python
@@ -627,7 +627,7 @@ def main_seg():
     return MainSegment(0x1000, 0x80000400, 0x8003F500, 0x80000450, 0x8009DA10, 0x800A0660, 0x800B0B50, 0x801059A0)
 ```
 
-- [ ] **Step 2: Write the failing ROM-free tests**
+- [x] **Step 2: Write the failing ROM-free tests**
 
 `tools/romtool/tests/test_modules.py`:
 ```python
@@ -716,7 +716,7 @@ def test_resolve_local_kinds():
     assert resolve(call, jal(0x8), SYMBOLS, main, 1) == Target(1, 0x8)
 ```
 
-- [ ] **Step 3: Write the failing ROM-backed tests**
+- [x] **Step 3: Write the failing ROM-backed tests**
 
 `tools/romtool/tests/test_modules_rom.py`:
 ```python
@@ -759,12 +759,12 @@ def test_absolute_symbols(rom):
     assert {resolve(r, 0, syms, main, len(mods)) for r in absolute} == {Target(None, 0x80000300)}
 ```
 
-- [ ] **Step 4: Run tests to verify they fail**
+- [x] **Step 4: Run tests to verify they fail**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_modules.py tools/romtool/tests/test_modules_rom.py`
 Expected: FAIL — `No module named 'romtool.modules'`.
 
-- [ ] **Step 5: Implement `modules.py`**
+- [x] **Step 5: Implement `modules.py`**
 
 `tools/romtool/romtool/modules.py`:
 ```python
@@ -924,17 +924,17 @@ def resolve(reloc: RawReloc, insn: int, symbols: list[int], main: MainSegment, m
     return Target(reloc.module, (insn & 0x3FFFFFF) << 2)
 ```
 
-- [ ] **Step 6: Run ROM-free tests**
+- [x] **Step 6: Run ROM-free tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_modules.py`
 Expected: all pass (13 tests including parametrized cases).
 
-- [ ] **Step 7: Run ROM-backed tests**
+- [x] **Step 7: Run ROM-backed tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_modules_rom.py`
 Expected: 3 passed. If a count differs, do not edit the expected numbers — the spike measured them independently; find the decoding bug.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tools/romtool
