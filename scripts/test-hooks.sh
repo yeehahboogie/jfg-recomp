@@ -13,3 +13,5 @@ build/cic6105_test
 build/fpu_mode_test
 "$CXX" -std=c++20 -Wall -Iinclude src/jfg/input_script.cpp tests/input_script_test.cpp -o build/input_script_test
 build/input_script_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/controls/gate.cpp tests/controls/gate_test.cpp -o build/gate_test
+build/gate_test

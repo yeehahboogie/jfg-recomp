@@ -53,7 +53,7 @@
   - C hook entry points `void jfg_controls_latch(uint8_t*, recomp_context*)`, `void jfg_controls_begin_player(uint8_t*, recomp_context*)`, `void jfg_controls_after_camera(uint8_t*, recomp_context*)`
   - Global `jfg::controls::g_frame` (`struct FrameState { bool active; uint32_t pd; uint32_t obj; int camera_kind; }`): `camera_kind` 0 = unknown, 1 = follow, 2 = aim, 3 = other.
 
-- [ ] **Step 1: Write the failing gate test**
+- [x] **Step 1: Write the failing gate test**
 
 `tests/controls/gate_test.cpp`:
 ```cpp
@@ -78,11 +78,11 @@ Append to `scripts/test-hooks.sh`:
 build/gate_test
 ```
 
-- [ ] **Step 2: Run it and see it fail** (`gate.cpp` does not exist).
+- [x] **Step 2: Run it and see it fail** (`gate.cpp` does not exist).
 
 Run: `source tools/toolchain.env && scripts/test-hooks.sh 2>&1 | tail -2`. Expected: a compile error naming `src/jfg/controls/gate.cpp`.
 
-- [ ] **Step 3: Implement the gate**
+- [x] **Step 3: Implement the gate**
 
 `src/jfg/controls/gate.h`:
 ```cpp
@@ -120,9 +120,9 @@ bool modern_applies(const PlayerView& p, bool scheme_modern) {
 }
 ```
 
-- [ ] **Step 4: Run the test.** Run `scripts/test-hooks.sh`. Expected: `gate_test: OK`.
+- [x] **Step 4: Run the test.** Run `scripts/test-hooks.sh`. Expected: `gate_test: OK`.
 
-- [ ] **Step 5: Hooks and debug log.**
+- [x] **Step 5: Hooks and debug log.**
 
 `include/jfg_controls_hooks.h` (declares the C entry points, included by the generated code through `recomp_include`):
 ```c
@@ -201,11 +201,11 @@ text = "jfg_controls_after_camera(rdram, ctx);"
 ```
 Add `src/jfg/controls/gate.cpp` and `src/jfg/controls/hooks.cpp` to the JFG sources list in `CMakeLists.txt`, next to `src/jfg/fpu_mode.cpp`.
 
-- [ ] **Step 6: Build.** Run `source tools/toolchain.env && scripts/recompile.sh && cmake --build build --target JFGRecompiled -j 20 > build/diag/build.log 2>&1; echo $?`. Expected: `0`.
+- [x] **Step 6: Build.** Run `source tools/toolchain.env && scripts/recompile.sh && cmake --build build --target JFGRecompiled -j 20 > build/diag/build.log 2>&1; echo $?`. Expected: `0`.
 
 Check `grep -n "jfg_controls_after_camera" generated/funcs/*.c`: one hit, inside `func_8002B418`.
 
-- [ ] **Step 7: Confirm the inferred fields at run time.**
+- [x] **Step 7: Confirm the inferred fields at run time.**
 
 1. Read `func_80041E0C` (`camGetListPtr`) in the generated code to get the camera list address, and fill `cam0()`.
 2. Read the first lines of `func_80032A48` to see whether `a0` is `obj` or `pd`, and fix Step 5 if needed.
@@ -223,7 +223,7 @@ Check `grep -n "jfg_controls_after_camera" generated/funcs/*.c`: one hit, inside
 
 Record (a)–(c) under "Findings" at the end of this plan.
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 ```bash
 git add src/jfg/controls include/jfg_controls_hooks.h tests/controls/gate_test.cpp recomp/jfg.toml.in CMakeLists.txt scripts/test-hooks.sh docs/superpowers/plans/2026-10-14-jfg-modern-controls.md
 git commit -m "Controls: gate, hooks scaffolding and JFG_DEBUG_CONTROLS log" && git push -q origin modern-controls
@@ -773,8 +773,17 @@ Add a "Modern controls" section to the handoff doc: settings, default bindings, 
 
 Recorded during execution: runtime-confirmed facts with log references.
 
-- (a) States while running and aiming:
+- (a) States while running and aiming: `state=0` standing and running, `state=11` for every frame R is held (34 frames for a 1.5 s hold at ~289 s; `build/diag/controls1.log`).
 - (b) Orbit heading and camera yaw relation:
-- (c) Player index and character values for Juno:
-- (d) `controlPlayer` argument (obj or pd), the camera list address, the `disablejoy` address:
+  - `pd+0x104` (orbit) is the direction from the camera to the player in the game's angle convention, `orbit = atan2(−dx, dz)` with `d = player − camera`. Measured 0x5667 against a logged 0x5663 (f=445).
+  - "Behind the player" is `0x8000 − facing`. Running forward with `facing=8000` gives `orbit=0000` and `camyaw=0000`, and the camera sits at −z of the player.
+  - `cam yaw` is not equal to the orbit: it runs ~0x7BB ahead at rest (`orbit=5663`, `camyaw=5E22`). Resyncs therefore read `pd+0x104`, never derive it from `cam yaw`.
+  - The camera stays about 181–198 units away horizontally and ~170 above the player.
+- (c) Player index and character values for Juno: `idx=0`, `chr=1` (`pd+1 & 3`).
+- (d) `controlPlayer` argument, camera list, `disablejoy`:
+  - `controlPlayer`'s `a0` is `obj`, and `pd = *(obj+0x68)` (`0x80032A68`).
+  - The camera list (`camGetListPtr`) is the array at `0x800FA4D0`: s16 yaw at +0, s16 pitch at +2, f32 position at +0x0C/+0x10/+0x14.
+  - `disablejoy` is the word at `0x800F6DBC`, tested first by `controlReadJoypad`.
+  - The camera dispatcher `0x8002B418(obj, pd, ticks)` reuses `s0` at `0x8002B884`, so `pd` is captured at its entry. It also runs for a non-player `pd` (`801DC790`) during cutscenes.
+  - Juno is controllable and standing from about 287 s to 296 s in the Goldwood script, a safe window for scripted test inputs. The scripted run then reaches Magnus's dialogue trigger at about 300.3 s.
 - (e) Free camera checks (Task 6 Step 5 a–c):

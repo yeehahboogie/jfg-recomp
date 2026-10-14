@@ -6,7 +6,7 @@ entrypoint = 0x80000400
 elf_path = "@GENERATED@/jfg.elf"
 output_func_path = "@GENERATED@/funcs"
 relocatable_sections_path = "@GENERATED@/relocatable_sections.txt"
-recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\""
+recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\""
 functions_per_output_file = 50
 
 [patches]
@@ -89,3 +89,21 @@ value = 0x29417FFF     # slti $at, $t2, 0x7FFF   (was 0xB: SP counter)
 func = "func_80050154"
 vram = 0x80050290
 value = 0x29017FFF     # slti $at, $t0, 0x7FFF   (was 0xB: DP counter)
+
+# Modern controls (docs/superpowers/specs/2026-10-14-jfg-modern-controls-design.md)
+[[patches.hook]]
+func = "func_80043130"          # joyRead: latch this frame's modern input
+text = "jfg_controls_latch(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_80032A48"          # controlPlayer(obj): per-player gate
+text = "jfg_controls_begin_player(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8002B418"          # camera dispatcher(obj, pd, ticks) entry
+text = "jfg_controls_camera_begin(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8002B418"          # camera dispatcher, before its epilogue (every path reaches 0x8002B954)
+before_vram = 0x8002B954
+text = "jfg_controls_after_camera(rdram, ctx);"
