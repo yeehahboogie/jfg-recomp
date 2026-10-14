@@ -454,7 +454,7 @@ Add `look=(%.2f,%.2f) mouse=(%.1f,%.1f)` to the `JFG_DEBUG_CONTROLS` line. Run a
   - Yaw units: s16 binary angle. Pitch: −1…1. Mouse wins when both mouse and stick give input in the same frame.
   - Sign conventions: mouse/stick right decreases `yaw`, and mouse down/stick down decreases `pitch` (look down) unless inverted. Task 6 confirms the visible direction and flips constants there if needed.
 
-- [ ] **Step 1: Failing tests** (`free_camera_test.cpp`). Each case asserts with explicit numbers:
+- [x] **Step 1: Failing tests** (`free_camera_test.cpp`). Each case asserts with explicit numbers:
   - `look_mouse_turns`: mouse_dx = 10 with 100 units per count gives yaw −1000 and `idle` 0, and returns true.
   - `look_stick_rate`: stick_x = 1 at 180°/s for dt = 1/30 gives yaw −(65536·0.5/30) ±1.
   - `look_mixed_input_mouse_wins`: mouse_dx = 10 and stick_x = 1 gives only the mouse's contribution.
@@ -464,9 +464,9 @@ Add `look=(%.2f,%.2f) mouse=(%.1f,%.1f)` to the `JFG_DEBUG_CONTROLS` line. Run a
   - `resync_after_other_camera`: resync(0x4000, 1.5) gives yaw 0x4000, pitch 0, and idle ≥ 1.5, so the next idle step returns false.
   - `deadzone_tiny_mouse_is_input`: mouse_dx = 1 resets `idle` (any mouse count is deliberate).
 
-- [ ] **Step 2: Run, expect failure.**
+- [x] **Step 2: Run, expect failure.**
 
-- [ ] **Step 3: Implement `free_camera.cpp`:**
+- [x] **Step 3: Implement `free_camera.cpp`:**
 ```cpp
 bool free_camera_step(FreeCameraState& s, const ModernInput& in, const LookParams& p, float drift_delay, float dt) {
     const bool mouse = in.mouse_dx != 0.f || in.mouse_dy != 0.f;
@@ -491,9 +491,9 @@ void free_camera_follow(FreeCameraState& s, int16_t heading) { s.yaw = heading; 
 ```
 (`mouse_counts_to_units / 16384` maps one count to the same angular rate in pitch, where pitch 1.0 = a quarter turn.)
 
-- [ ] **Step 4: Run, expect `free_camera_test: OK`.**
+- [x] **Step 4: Run, expect `free_camera_test: OK`.**
 
-- [ ] **Step 5: Commit and push.**
+- [x] **Step 5: Commit and push.**
 
 ---
 
@@ -779,6 +779,7 @@ Recorded during execution: runtime-confirmed facts with log references.
   - "Behind the player" is `0x8000 − facing`. Running forward with `facing=8000` gives `orbit=0000` and `camyaw=0000`, and the camera sits at −z of the player.
   - `cam yaw` is not equal to the orbit: it runs ~0x7BB ahead at rest (`orbit=5663`, `camyaw=5E22`). Resyncs therefore read `pd+0x104`, never derive it from `cam yaw`.
   - The camera stays about 181–198 units away horizontally and ~170 above the player.
+  - **Look right increases the orbit heading.** With camera yaw 0 (looking +z), stick right moves Juno toward −x, and the camera's yaw and orbit increase as it follows (`controls1.log` f=133–140). Movement direction for facing `f` is `(−sin f, −cos f)`, and the camera→player direction for orbit `o` is `(−sin o, cos o)`.
 - (c) Player index and character values for Juno: `idx=0`, `chr=1` (`pd+1 & 3`).
 - (d) `controlPlayer` argument, camera list, `disablejoy`:
   - `controlPlayer`'s `a0` is `obj`, and `pd = *(obj+0x68)` (`0x80032A68`).
