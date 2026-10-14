@@ -23,3 +23,5 @@ build/translate_test
 build/input_state_test
 "$CXX" -std=c++20 -Wall -Iinclude src/jfg/controls/free_camera.cpp tests/controls/free_camera_test.cpp -o build/free_camera_test
 build/free_camera_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/controls/aim.cpp tests/controls/aim_test.cpp -o build/aim_test
+build/aim_test

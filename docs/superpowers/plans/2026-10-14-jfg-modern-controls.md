@@ -590,7 +590,7 @@ If the visible yaw or pitch direction is opposite to the stick, flip the constan
   int16_t stick_to_offset(float stick /* -1..1 */, int16_t lim);
   ```
 
-- [ ] **Step 1: Failing tests** (`aim_test.cpp`, explicit numbers). Use `lim = {0xE38, 0xE38, -0x2AAA, 0x2AAA}` and 1 unit per count, aim_mult 1, zoom 1:
+- [x] **Step 1: Failing tests** (`aim_test.cpp`, explicit numbers). Use `lim = {0xE38, 0xE38, -0x2AAA, 0x2AAA}` and 1 unit per count, aim_mult 1, zoom 1:
   - `aim_mouse_moves_crosshair`: dx = 100 gives `yaw_off == -100`, and facing unchanged.
   - `aim_overflow_turns_body`: `yaw_off = -0xE00`, dx = 100: the offset clamps to `-0xE38`, and the remaining 44 units turn the facing by −44.
   - `aim_overflow_turns_body_big_flick`: dx = 100000 gives `yaw_off == -0xE38`, and the facing changes by −(100000 − 0xE38) mod 65536 without UB. The arithmetic is in int32, then cast.
@@ -600,16 +600,16 @@ If the visible yaw or pitch direction is opposite to the stick, flip the constan
   - `stick_rescale`: `stick_to_offset(80.0/127.0, 0xE38) == 0xE38` (full deflection at the N64 range), and `stick_to_offset(0.25, 0xE38) ≈ 0xE38·(0.25·127/80)/(40/40)` clamped to `lim`, within ±2.
   - `zoom_steps`: `zoom_weapon`, `zoom_dir = +1`, ticks 2 gives zoom +0.1 and `zoomed` true; clamped to [1, 5].
 
-- [ ] **Step 2: Run, expect failure.**
+- [x] **Step 2: Run, expect failure.**
 
-- [ ] **Step 3: Implement `aim.cpp`.**
+- [x] **Step 3: Implement `aim.cpp`.**
   - Mouse: `want = cur.off + d·units·mult·s`, where `s` is the zoom factor. The clamp to the box gives the new offset; the overflow is `want − clamped`, which is added to the facing (yaw) or the pitch base (pitch, clamped).
   - Stick (only when the mouse is idle): the original position mapping `off = lim·clamp(raw/40, ±1)` with `raw = stick·127·(80/127)`, i.e. `stick·80`. Rim turning: when `|raw| > 45`, apply the game's rate table `n(n+1)` for `n = min(|raw|−45, 19)`, scaled by `s`, times `ticks`, to the facing or pitch base.
   - Zoom: `zoom = clamp(zoom + 0.05·zoom_dir·ticks, 1, 5)`, and `zoomed = zoom_dir != 0`.
 
-- [ ] **Step 4: Run, expect `aim_test: OK`.**
+- [x] **Step 4: Run, expect `aim_test: OK`.**
 
-- [ ] **Step 5: Commit and push.**
+- [x] **Step 5: Commit and push.**
 
 ---
 
@@ -787,6 +787,13 @@ Recorded during execution: runtime-confirmed facts with log references.
   - `disablejoy` is the word at `0x800F6DBC`, tested first by `controlReadJoypad`.
   - The camera dispatcher `0x8002B418(obj, pd, ticks)` reuses `s0` at `0x8002B884`, so `pd` is captured at its entry. It also runs for a non-player `pd` (`801DC790`) during cutscenes.
   - Juno is controllable and standing from about 287 s to 296 s in the Goldwood script, a safe window for scripted test inputs. The scripted run then reaches Magnus's dialogue trigger at about 300.3 s.
+- (f) `controlGetManualAim` (0x8003AABC), decoded for Task 7:
+  - **Inputs.** It reads the raw stick `0x800F6DB4`/`B8` negated. The zoom weapon is weapon type 7 (`0x80047C1C(idx, chr)` → `+0x70`) with `pd+0x18E` clear.
+  - **Zoom.** The zoom velocity `pd+0x1F0` eases toward the slot 7/8 rates (`0x800AC3C4`/`C8`) by `1 − Powerf(0.875, (int)ticks)`. Zoom `pd+0x1EC` is clamped to [1, 5].
+  - **Sensitivity and box.** `s = 1/((z−1)·z/2+1)`, and the offset box is `(int)(lim·s)`.
+  - **Rim turning.** At `|raw| ≥ 46`, with the smoothed offset (`pd+0x1CE`, pitch `pd+0x1E0`) within 0x2D8 of the box edge, the rate target is `table[min(|raw|−45, 19)]/z`. It is smoothed into `pd+0x1E4`/`1E8` by `1 − Powerf(*0x800AC3CC, ticks)`.
+  - **Outputs.** `*off = box·clamp(raw, ±40)/40`. `facing += (int)(rate·ticks)`, and the pitch base `+= …`, clamped to [pitchMin, pitchMax]. It returns the zoom-weapon flag.
+  - **Signs.** Positive pitch is down (stick up gives negative offsets), so mouse down must *increase* the pitch offset (the spec's `pitchOff −= dy` was inverted).
 - (e) Free camera checks (Task 6 Step 5, `build/diag/fc/run.log`):
   - (a) PASS: right stick for 0.5 s while standing moves the orbit 0 → 0x3FFC (90°), and `facing` stays 0x8000 (f=30–42).
   - (b) PASS: running left after the look, the free camera holds the orbit until 1.5 s after the look ended, then the game swings it toward behind Juno (0x3FFC → 0xF757, f=87–162) and stops when she stops.
