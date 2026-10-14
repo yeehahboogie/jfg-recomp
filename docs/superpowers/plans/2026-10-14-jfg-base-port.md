@@ -3033,7 +3033,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Game memory used by the hooks (from the spikes): `0x800FEAA0` = pointer to the descriptor table (32 bytes per entry, entry 0 = main), `0x800FEAAC` = number of entries; entry `+0` load address, `+4` absolute ROM address, `+8` text size, `+0xC` data size.
 
-- [ ] **Step 1: Write the hook header and implementation**
+- [x] **Step 1: Write the hook header and implementation**
 
 `include/jfg_hooks.h`:
 ```c
@@ -3127,7 +3127,7 @@ extern "C" uint32_t jfg_patched_hi_lo(uint8_t* rdram, uint32_t hi_site, uint32_t
 ```
 If `librecomp/overlays.hpp` at the pinned runtime does not declare `load_overlays`/`unload_overlays` with `extern "C"`, declare them locally with the signatures above inside `extern "C" { }`.
 
-- [ ] **Step 1b: Unit-test the hooks against a fake runtime**
+- [x] **Step 1b: Unit-test the hooks against a fake runtime**
 
 `tests/fake/librecomp/overlays.hpp`:
 ```cpp
@@ -3251,7 +3251,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: audio microcode location (spike): text at vram `0x8009DA10` (ROM `0x9E610`), initial IMEM load `0x1000` bytes, remaining `0x840` bytes up to the boot microcode at `0x8009F250` (an IMEM overlay, likely the MP3 decoder); data at `0x800AFC10`, `0x800` bytes. Emulator HLE identifies this microcode as the n_audio + MP3 family shared with Banjo-Tooie / Perfect Dark.
 - Produces: `generated/rsp/aspMain.cpp` defining `aspMain`, referenced by Task 12 Step 4.
 
-- [ ] **Step 1: Find the IMEM load address and overlay DMAs**
+- [x] **Step 1: Find the IMEM load address and overlay DMAs**
 
 Disassemble the boot microcode (vram `0x8009F250`, `0x180` bytes) and the audio text as RSP code:
 ```bash
@@ -3264,7 +3264,7 @@ for i in range(0, n, 4):
 ```
 In the boot code, find the DMA that copies the task's ucode into IMEM (`mtc0` to `SP_MEM_ADDR` = `$c0`) — its IMEM destination is `text_address` (standard is `0x04001080`). Then disassemble the audio text (`0x9E610`, `0x1000`, that address) and find any `mtc0 … $c0` whose value has bit 12 set (IMEM destination): each is an overlay load; note its IMEM slot address and the DRAM offset it copies from (relative to the ucode text start).
 
-- [ ] **Step 2: Write the RSPRecomp config**
+- [x] **Step 2: Write the RSPRecomp config**
 
 `recomp/aspMain.jfg.toml`:
 ```toml
@@ -3281,7 +3281,7 @@ output_function_name = "aspMain"
 ```
 Uncomment and fill `[[overlay_slots]]` only with the values found in Step 1.
 
-- [ ] **Step 3: Run RSPRecomp**
+- [x] **Step 3: Run RSPRecomp**
 
 Add to `scripts/recompile.sh` before the final `echo`:
 ```bash

@@ -14,4 +14,6 @@ problems=$(grep -E '\[WARN\]|[Ee]rror|Unhandled|Could not|No function found' gen
 if [[ -n "$problems" ]]; then
   echo "N64Recomp reported problems:"; echo "$problems"; exit 1
 fi
-echo "recompiled: $(ls generated/funcs/*.c | wc -l) C files"
+mkdir -p generated/rsp
+"$RSPRECOMP" recomp/aspMain.jfg.toml > generated/rsp.log 2>&1 || { cat generated/rsp.log; exit 1; }
+echo "recompiled: $(ls generated/funcs/*.c | wc -l) C files, $(ls generated/rsp/*.cpp | wc -l) RSP microcode"

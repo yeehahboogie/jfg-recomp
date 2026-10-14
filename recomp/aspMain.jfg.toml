@@ -1,0 +1,16 @@
+# RSPRecomp configuration for JFG's audio microcode (n_audio family with MP3 support, as Banjo-Tooie /
+# Perfect Dark). The boot microcode copies 0xF80 bytes of the task's ucode to IMEM 0x1080 and jumps
+# there; the audio ucode loads no IMEM overlays (checked: no DMA to IMEM, no reads of the task's ucode
+# pointer). Paths are relative to this file.
+text_offset = 0x9E610
+text_size = 0xF80
+text_address = 0x04001080
+rom_file_path = "../jfg.z64"
+output_file_path = "../generated/rsp/aspMain.cpp"
+output_function_name = "aspMain"
+# Command handlers: the dispatch does `lh $1, 0x10(index)` / `jr $1`, so the targets live in a 16-entry
+# halfword table at DMEM 0x10 of the ucode data (ROM 0xB0810), which RSPRecomp cannot see.
+extra_indirect_branch_targets = [
+    0x1AE8, 0x143C, 0x1240, 0x1D84, 0x126C, 0x1B20, 0x12A8, 0x1214,
+    0x141C, 0x1310, 0x13CC, 0x12E4, 0x1FB0, 0x1358, 0x16EC, 0x1408,
+]
