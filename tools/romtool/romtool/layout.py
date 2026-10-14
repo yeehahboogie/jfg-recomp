@@ -108,3 +108,8 @@ def read_module_tables(rom: bytes) -> ModuleTables:
     if (desc - symtab) % 4 or (image - desc) % 32:
         raise RomError("module table sizes are not whole entries")
     return ModuleTables(symtab, desc, image)
+
+
+def read_main_imports_rom(rom: bytes) -> int:
+    """ROM address of the main segment's import table (u32 count, then 8-byte relocation entries)."""
+    return _hi_lo(rom, 0x80053A94, 0x80053A98, _T4)

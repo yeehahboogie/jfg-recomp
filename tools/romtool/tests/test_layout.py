@@ -49,3 +49,8 @@ def test_rom_of_bounds():
 def test_real_rom_layout(rom):
     assert read_main_segment(rom) == EXPECTED_MAIN
     assert read_module_tables(rom) == EXPECTED_TABLES
+
+
+def test_real_main_imports_rom(rom):
+    from romtool.layout import read_main_imports_rom
+    assert read_main_imports_rom(rom) == 0x1ECF220

@@ -2182,7 +2182,7 @@ Thunks only clobber `$t6 $t7 $t9`, which a caller may not keep live across a cal
 
 Link layout: each module is linked at its own address from `0x82000000` (4 KiB aligned, text+data+bss contiguous, same as the game allocates it). Relocations are emitted **only** for targets inside module sections (own or another module); a reference to a module's bss targets that module's PROGBITS section with an offset past its data (module memory is one contiguous block). Main-segment and absolute targets need no relocation: their final address is already in the instruction.
 
-- [ ] **Step 1: Write the failing thunk tests**
+- [x] **Step 1: Write the failing thunk tests**
 
 `tools/romtool/tests/test_thunks.py`:
 ```python
@@ -2236,12 +2236,12 @@ def test_thunks_only_clobber_temporaries():
     assert used <= {14, 15, 25, 31}
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_thunks.py`
 Expected: FAIL — `No module named 'romtool.thunks'`.
 
-- [ ] **Step 3: Add encoders to `mips.py` and implement `thunks.py`**
+- [x] **Step 3: Add encoders to `mips.py` and implement `thunks.py`**
 
 Append to `tools/romtool/romtool/mips.py`:
 ```python
@@ -2303,12 +2303,12 @@ def main_thunk(site_vram: int) -> list[int]:
     return [lui(_RA, ret_hi), addiu(_RA, _RA, ret_lo)] + _follow_call_at_ra_minus_8()
 ```
 
-- [ ] **Step 4: Run thunk tests**
+- [x] **Step 4: Run thunk tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_thunks.py`
 Expected: 3 passed.
 
-- [ ] **Step 5: Add `read_main_imports_rom` to `layout.py`**
+- [x] **Step 5: Add `read_main_imports_rom` to `layout.py`**
 
 Append to `tools/romtool/romtool/layout.py`:
 ```python
@@ -2323,7 +2323,7 @@ def test_real_main_imports_rom(rom):
     assert read_main_imports_rom(rom) == 0x1ECF220
 ```
 
-- [ ] **Step 6: Write the failing ROM-backed build tests**
+- [x] **Step 6: Write the failing ROM-backed build tests**
 
 `tools/romtool/tests/test_build_rom.py`:
 ```python
@@ -2360,7 +2360,7 @@ def test_counts(rom):
 def test_main_image_only_changes_thunk_sites(rom):
     p, main = _program(rom), read_main_segment(rom)
     image = next(s for s in p.sections if s.name == ".main").data
-    original = rom[main.rom_of(main.vram_start):main.rom_of(main.bss_start)]
+    original = rom[main.rom_start:main.rom_start + (main.bss_start - main.vram_start)]
     sites = {t.site for t in p.thunks if t.caller_section == MAIN}
     for off in range(0, len(original), 4):
         vram = main.vram_start + off
@@ -2413,12 +2413,12 @@ def test_thunks_live_in_thunk_section(rom):
     assert sec.vram == THUNK_VRAM and all(sec.vram <= t.vram < sec.vram + sec.size for t in p.thunks)
 ```
 
-- [ ] **Step 7: Run to verify failure**
+- [x] **Step 7: Run to verify failure**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_build_rom.py tools/romtool/tests/test_layout.py`
 Expected: FAIL — `No module named 'romtool.build'`; `test_real_main_imports_rom` passes.
 
-- [ ] **Step 8: Implement `build.py`**
+- [x] **Step 8: Implement `build.py`**
 
 `tools/romtool/romtool/build.py`:
 ```python
@@ -2581,7 +2581,7 @@ def build_program(rom: bytes, overrides: Overrides) -> Program:
             bss_sections.append(Section(name + ".bss", base + m.image_size, m.bss_size))
 
     # Main segment: static, except for the calls and address pairs the game re-links at run time.
-    main_image = bytearray(rom[main.rom_of(main.vram_start):main.rom_of(main.bss_start)])
+    main_image = bytearray(rom[main.rom_start:main.rom_start + (main.bss_start - main.vram_start)])
     hooks: list[Hook] = []
     imports = _read_main_imports(rom, main)
     main_funcs = [f for f in functions if f.section == MAIN]
@@ -2633,7 +2633,7 @@ def build_program(rom: bytes, overrides: Overrides) -> Program:
     return Program(sections, funcs, rels, thunks, hooks, bases, main.vram_start)
 ```
 
-- [ ] **Step 9: Implement `elf_relocate.py`**
+- [x] **Step 9: Implement `elf_relocate.py`**
 
 `tools/romtool/romtool/elf_relocate.py`:
 ```python
@@ -2676,12 +2676,12 @@ def relocate_module(program: Program, module_index: int, bases: dict[int, int]) 
     return bytes(image)
 ```
 
-- [ ] **Step 10: Run all romtool tests**
+- [x] **Step 10: Run all romtool tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool`
 Expected: all pass. If `test_roundtrip_matches_game_linker` fails, the message names seed, module and offset; compare the two words, find which side mis-implements the game's rule (the game's code in Task 4's header is the authority), fix, re-run.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add tools/romtool

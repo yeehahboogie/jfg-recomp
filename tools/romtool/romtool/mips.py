@@ -47,3 +47,19 @@ def is_call(w: int) -> bool:
 
 def is_trap(w: int) -> bool:
     return w & 0xFC00003F == 0x0000000D  # break
+
+
+def lui(rt: int, imm: int) -> int: return (0x0F << 26) | (rt << 16) | (imm & 0xFFFF)
+def addiu(rt: int, rs: int, imm: int) -> int: return (0x09 << 26) | (rs << 21) | (rt << 16) | (imm & 0xFFFF)
+def lw(rt: int, imm: int, base: int) -> int: return (0x23 << 26) | (base << 21) | (rt << 16) | (imm & 0xFFFF)
+def addu(rd: int, rs: int, rt: int) -> int: return (rs << 21) | (rt << 16) | (rd << 11) | 0x21
+def sll(rd: int, rt: int, sa: int) -> int: return (rt << 16) | (rd << 11) | (sa << 6)
+def srl(rd: int, rt: int, sa: int) -> int: return (rt << 16) | (rd << 11) | (sa << 6) | 0x02
+def or_(rd: int, rs: int, rt: int) -> int: return (rs << 21) | (rt << 16) | (rd << 11) | 0x25
+def jr(rs: int) -> int: return (rs << 21) | 0x08
+def jal(target: int) -> int: return (0x03 << 26) | ((target >> 2) & 0x3FFFFFF)
+
+
+def hi_lo(value: int) -> tuple[int, int]:
+    value &= 0xFFFFFFFF
+    return ((value >> 16) + ((value >> 15) & 1)) & 0xFFFF, value & 0xFFFF
