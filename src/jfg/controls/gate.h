@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <atomic>
 namespace jfg::controls {
 // What the gate needs to know about the player being updated.
 struct PlayerView {
@@ -19,4 +20,9 @@ struct FrameState {
     int camera_kind = 0;   // 0 unknown, 1 follow, 2 aim, 3 other
 };
 extern FrameState g_frame;
+
+// Milliseconds (steady clock) when Modern last applied to player 1; the frontend captures the mouse while it is
+// recent. Written by the game thread, read by the input thread.
+void mark_modern_active();
+bool modern_recently_active(int grace_ms);
 }

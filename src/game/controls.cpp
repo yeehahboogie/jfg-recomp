@@ -1,5 +1,6 @@
 #include <array>
 #include <chrono>
+#include <cstdio>
 #include <cstdlib>
 #include <vector>
 
@@ -126,6 +127,21 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
         return false;
     }
 
+    // Development aid: JFG_CONTROLS_SCHEME_FLIP_AT=<seconds> flips Modern/Original once, that long after the first
+    // controller read, without saving (checks that a mid-game switch takes effect on the next frame).
+    static const double scheme_flip_at = []() {
+        const char* v = std::getenv("JFG_CONTROLS_SCHEME_FLIP_AT");
+        return v != nullptr ? std::stod(v) : -1.0;
+    }();
+    if (scheme_flip_at >= 0.0) {
+        static const auto first_read = std::chrono::steady_clock::now();
+        static bool flipped = false;
+        if (!flipped && std::chrono::duration<double>(std::chrono::steady_clock::now() - first_read).count() >= scheme_flip_at) {
+            flipped = true;
+            jfg::controls::settings().modern = !jfg::controls::settings().modern;
+            std::fprintf(stderr, "[controls] scheme flipped to %s\n", jfg::controls::settings().modern ? "Modern" : "Original");
+        }
+    }
     const bool modern = jfg::controls::settings().modern;
     jfg::controls::ModernInput modern_in{};
     // Modern reads the right stick as look input itself, so it must not also act as the C-buttons.

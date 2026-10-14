@@ -1,3 +1,5 @@
+#include "../jfg/controls/gate.h"
+#include "../jfg/controls/settings.h"
 #include <atomic>
 #include <mutex>
 
@@ -324,8 +326,11 @@ void recomp::handle_events() {
     while (SDL_PollEvent(&cur_event) && !exited) {
         exited = sdl_event_filter(nullptr, &cur_event);
 
-        // Lock the cursor if all three conditions are true: mouse aiming is enabled, game input is not disabled, and the game has been started. 
-        bool cursor_locked = (recomp::get_mouse_sensitivity() != 0) && !recomp::game_input_disabled() && ultramodern::is_game_started();
+        // Lock the cursor only during Modern gameplay (the game's menus, cutscenes and the port's menus release it),
+        // with a short grace period so camera cuts don't flicker it.
+        bool cursor_locked = jfg::controls::settings().modern && recomp::get_mouse_sensitivity() != 0 &&
+                             !recomp::game_input_disabled() && ultramodern::is_game_started() &&
+                             jfg::controls::modern_recently_active(500);
 
         // Hide the cursor based on its enable state, but override visibility to false if the cursor is locked.
         bool cursor_visible = cursor_enabled;

@@ -722,7 +722,7 @@ If the animation slides, add an animation fix in this task: set the walk/strafe 
 **Files:**
 - Modify: `src/game/input.cpp` (capture rule), `docs/superpowers/handoff-2026-10-14.md` (Modern controls section), this plan's Findings
 
-- [ ] **Step 1: Capture rule.**
+- [x] **Step 1: Capture rule.**
 
 In `src/game/input.cpp` (around line 308), the `cursor_locked` condition becomes:
 
@@ -730,7 +730,7 @@ In `src/game/input.cpp` (around line 308), the `cursor_locked` condition becomes
 
 `g_frame.active` is false in cutscenes and menus, because the game disables input. Add a short grace period: keep the lock for 0.5 s after `active` drops, so cutscene cuts don't flicker the cursor.
 
-- [ ] **Step 2: Original regression.**
+- [x] **Step 2: Original regression.**
 
 Add a `JFG_DEBUG_CONTROLS` field-only mode: with the scheme Original, the debug line still prints `state`, `facing`, `orbit` and `pos`.
 
@@ -739,7 +739,7 @@ Add a `JFG_DEBUG_CONTROLS` field-only mode: with the scheme Original, the debug 
 
 Expected: identical. If the base-port build lacks the debug line, compare screenshots at 300, 305 and 310 s instead, which should be pixel-equal within compression noise. Use `python3 -c` with PIL `ImageChops.difference(...).getbbox()` and expect None, or a tiny bbox from the HUD clock.
 
-- [ ] **Step 3: Scheme switch mid-game (Review Focus 2).**
+- [x] **Step 3: Scheme switch mid-game (Review Focus 2).**
 
 Add the debug switch `JFG_CONTROLS_SCHEME_FLIP_AT=<seconds>`. It flips `settings().modern` once, that many seconds after start, without saving.
 
@@ -748,11 +748,11 @@ Run the Goldwood script with the right stick held (`300+6 - 0 0 1 0`) and the fl
 - `orbit` stops following the stick;
 - the right stick (now C-buttons again) produces C-pan values in `pan`.
 
-- [ ] **Step 4: Handoff doc.**
+- [x] **Step 4: Handoff doc.**
 
 Add a "Modern controls" section to the handoff doc: settings, default bindings, debug switches (`JFG_DEBUG_CONTROLS`, `JFG_CONTROLS_SCHEME_FLIP_AT`), the input-script axes, and Findings. Move the stick-range note for the Original scheme to its own item.
 
-- [ ] **Step 5: Commit and push.** The loop stops here. Task 11 is the user's.
+- [x] **Step 5: Commit and push.** The loop stops here. Task 11 is the user's.
 
 ---
 
@@ -806,6 +806,9 @@ Recorded during execution: runtime-confirmed facts with log references.
   - **Back.** `pd+0x04` = +3.0.
   - **Jump while aiming.** Pressing Jump changes nothing, and releasing R returns to state 0.
   - **Animations.** Not visible in the over-the-shoulder camera (legs off screen), so they're a playtest item. Strafing also presses C-left/right, so the game's strafe helper picks its strafe animation.
+- (i) Regression and switching (Task 10):
+  - **Original matches the observer-only baseline** (the Task 1 build, `build/diag/controls1.log`) under the same script, aligned at the start of the right-stick turn. Facing, orbit and position are identical for the first frames. After that they drift apart by at most a few dozen angle units and 0.1 units of position, which traces to a 0.4-unit difference in camera position at the turn start (the baseline run had frame-rate dips). `active=0` throughout (`build/diag/original-head.log`).
+  - **Scheme flip at 291 s.** `active` goes 1 → 0 on the next frame, and the orbit stops following the stick (`build/diag/flip/run.log`).
 - (e) Free camera checks (Task 6 Step 5, `build/diag/fc/run.log`):
   - (a) PASS: right stick for 0.5 s while standing moves the orbit 0 → 0x3FFC (90°), and `facing` stays 0x8000 (f=30–42).
   - (b) PASS: running left after the look, the free camera holds the orbit until 1.5 s after the look ended, then the game swings it toward behind Juno (0x3FFC → 0xF757, f=87–162) and stops when she stops.

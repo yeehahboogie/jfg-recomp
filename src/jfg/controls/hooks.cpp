@@ -99,6 +99,7 @@ extern "C" void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx) {
                                       MEM_W(0, disablejoy) != 0};
     if (v.index == 0) {
         jfg::controls::g_frame = {jfg::controls::modern_applies(v, scheme_modern()), pd, (uint32_t)obj, 0};
+        if (jfg::controls::g_frame.active) jfg::controls::mark_modern_active();
     }
 }
 
@@ -281,11 +282,11 @@ void apply_free_camera_pitch(uint8_t* rdram) {
 extern "C" void jfg_controls_after_camera(uint8_t* rdram, recomp_context*) {
     auto& f = jfg::controls::g_frame;
     const uint32_t pd = camera_pd;
-    if (!is_player0(pd)) return;
-    apply_free_camera_pitch(rdram);
+    if (f.pd == 0 || pd != f.pd) return;
+    if (f.active) apply_free_camera_pitch(rdram);
     const int camera_kind = f.camera_kind;
     f.camera_kind = 0;
-    if (!debug) return;
+    if (!debug) return; // the log also runs in Original, for the regression comparison
     const gpr p = kseg0(pd), o = kseg0(f.obj);
     const jfg::controls::ModernInput& in = jfg::controls::frame();
     std::fprintf(stderr,
