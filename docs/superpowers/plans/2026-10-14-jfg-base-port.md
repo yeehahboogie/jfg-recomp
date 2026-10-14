@@ -2961,7 +2961,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: `generated/jfg.toml`, `build/tools/N64Recomp/N64Recomp`.
 - Produces: `generated/funcs/*.c`, `generated/funcs/funcs.h`, `generated/funcs/recomp_overlays.inl`, `generated/funcs/lookup.cpp`; `scripts/recompile.sh` (exit 0 only when output is clean).
 
-- [ ] **Step 1: Write the wrapper script**
+- [x] **Step 1: Write the wrapper script**
 
 `scripts/recompile.sh`:
 ```bash
@@ -2989,12 +2989,12 @@ echo "recompiled: $(ls generated/funcs/*.c | wc -l) C files"
 ```
 Run: `chmod +x scripts/recompile.sh`
 
-- [ ] **Step 2: Run it**
+- [x] **Step 2: Run it**
 
 Run: `scripts/recompile.sh`
 Expected first time: a list of problems, or success.
 
-- [ ] **Step 3: Resolve every problem, one class at a time**
+- [x] **Step 3: Resolve every problem, one class at a time**
 
 For each reported line:
 - *Unhandled branch / jump table out of function / No function found for jal target* → a function-boundary error. Inspect with `tools/romtool/.venv/bin/romtool disasm jfg.z64 --section S --address A`; fix with `[[merge]]`/`[[add_start]]` (with reason) in `recomp/function_overrides.toml`, or fix the scanner if it's a systematic rule; re-run `tools/romtool/.venv/bin/pytest -q tools/romtool` then `scripts/recompile.sh`.
@@ -3002,12 +3002,12 @@ For each reported line:
 - *Undefined symbol / unknown section* → bug in `build.py`/`elf.py`: write a failing romtool test reproducing it first, then fix.
 Loop until `scripts/recompile.sh` prints `recompiled: N C files` and exits 0.
 
-- [ ] **Step 4: Check section indices match modules**
+- [x] **Step 4: Check section indices match modules**
 
 Run: `grep -n "overlay_sections_by_index" -A 3 generated/funcs/recomp_overlays.inl | head`; `grep -c "rom_addr" generated/funcs/recomp_overlays.inl`
 Expected: 157 overlay sections listed in module order; section_table rom_addr values ascending and equal to module ROM addresses (`0x1ED3B20`, …).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add scripts/recompile.sh recomp

@@ -203,6 +203,15 @@ def build_program(rom: bytes, overrides: Overrides) -> Program:
             raise RomError(f"main import at {site:#x}: unsupported type {rtype}")
         k += 1
 
+    # Words changed only in the ELF N64Recomp analyses (e.g. an unused jump-table slot), never in the game.
+    patched_sites = {t.site for t in thunks if t.caller_section == MAIN}
+    for (section, address), value in overrides.elf_words.items():
+        if section != MAIN:
+            raise RomError(f"elf_word override for section {section}: only the main segment is supported")
+        if address in patched_sites or not main.vram_start <= address < main.bss_start:
+            raise RomError(f"elf_word override at {address:#x} is outside main or on a thunk site")
+        struct.pack_into(">I", main_image, address - main.vram_start, value)
+
     sections.append(Section(".main", main.vram_start, len(main_image), data=bytes(main_image),
                             lma=main.rom_start, code=True))
     sections.extend(module_sections)

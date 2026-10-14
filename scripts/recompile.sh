@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Regenerate everything from the ROM and recompile. Any N64Recomp warning or error that isn't
+# allow-listed fails the run.
+set -euo pipefail
+cd "$(dirname "$0")/.."
+source tools/paths.env
+ROM="${JFG_ROM:-jfg.z64}"
+tools/romtool/.venv/bin/romtool verify "$ROM"
+tools/romtool/.venv/bin/romtool build-elf "$ROM" --out generated --n64sym "$N64SYM"
+rm -rf generated/funcs && mkdir -p generated/funcs
+"$N64RECOMP" generated/jfg.toml > generated/recomp.log 2>&1 || { tail -50 generated/recomp.log; exit 1; }
+problems=$(grep -E '\[WARN\]|[Ee]rror|Unhandled|Could not|No function found' generated/recomp.log \
+           | grep -vxF -f <(grep -v '^#' recomp/recompile_allowlist.txt | sed '/^$/d'; echo '__never_matches__') || true)
+if [[ -n "$problems" ]]; then
+  echo "N64Recomp reported problems:"; echo "$problems"; exit 1
+fi
+echo "recompiled: $(ls generated/funcs/*.c | wc -l) C files"

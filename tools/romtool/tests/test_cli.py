@@ -30,5 +30,6 @@ def test_build_elf(rom, tmp_path):
         assert (tmp_path / name).exists()
     listed = (tmp_path / "relocatable_sections.txt").read_text().split()
     assert listed[0] == ".m001" and len(listed) == 157
+    assert listed[20] == "*" and listed[55] == "*"  # modules 21 and 56 have no code: empty overlay slots
     toml = (tmp_path / "jfg.toml").read_text()
     assert "@GENERATED@" not in toml and toml.count("[[patches.hook]]") == 3 + 2

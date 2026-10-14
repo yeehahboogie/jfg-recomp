@@ -36,7 +36,10 @@ def test_main_image_only_changes_thunk_sites(rom):
     image = next(s for s in p.sections if s.name == ".main").data
     original = rom[main.rom_start:main.rom_start + (main.bss_start - main.vram_start)]
     sites = {t.site for t in p.thunks if t.caller_section == MAIN}
+    elf_only = {a for (sec, a) in load_overrides(ROOT / "recomp/function_overrides.toml").elf_words if sec == MAIN}
     for off in range(0, len(original), 4):
+        if main.vram_start + off in elf_only:
+            continue
         vram = main.vram_start + off
         if vram in sites:
             assert image[off:off + 4] != original[off:off + 4]
@@ -93,3 +96,11 @@ def test_broken_main_call_import_kept_as_thunk(rom):
     p = _program(rom)
     broken = [t for t in p.thunks if t.target is None]
     assert [(t.caller_section, t.site) for t in broken] == [(MAIN, 0x80068404)]
+
+
+def test_elf_word_override_applied_to_main_image_only(rom):
+    p, main = _program(rom), read_main_segment(rom)
+    image = next(s for s in p.sections if s.name == ".main").data
+    off = 0x800A7478 - main.vram_start
+    assert struct.unpack_from(">I", image, off)[0] == 0x80074E34          # what N64Recomp analyses
+    assert struct.unpack_from(">I", rom, main.rom_of(0x800A7478))[0] == 0   # what the game sees

@@ -133,3 +133,9 @@ def test_extend_override_parsed(tmp_path):
     path = tmp_path / "o.toml"
     path.write_text('[[extend]]\nsection = 0\naddress = 0x80073E80\nend = 0x80074E50\nreason = "asm routine"\n')
     assert load_overrides(path).extend == {(0, 0x80073E80): 0x80074E50}
+
+
+def test_elf_word_override_parsed(tmp_path):
+    path = tmp_path / "o.toml"
+    path.write_text('[[elf_word]]\nsection = 0\naddress = 0x800A7478\nvalue = 0x80074E34\nreason = "jtbl entry 0"\n')
+    assert load_overrides(path).elf_words == {(0, 0x800A7478): 0x80074E34}

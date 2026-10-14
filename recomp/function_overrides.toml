@@ -156,3 +156,15 @@ name = "module_unload"
 section = 0
 address = 0x80054530
 name = "lazy_link"
+
+# --- words changed in the ELF only (N64Recomp's input), never in the game's RAM ---
+# The dispatch `jr $s1` at 0x80074E2C indexes a 2-entry table at 0x800A7478 with no bounds check.
+# Entry 0 is 0 (index 0 would jump to address 0 on hardware, so it never happens); N64Recomp sizes a
+# table by reading entries until one leaves the function, so a leading 0 gives it no entries at all.
+# Pointing entry 0 at entry 1's target lets it size the table at 2; the generated switch uses the
+# run-time index, not the table, so behaviour is unchanged.
+[[elf_word]]
+section = 0
+address = 0x800A7478
+value = 0x80074E34
+reason = "unused jump-table slot 0 at 0x800A7478; gives N64Recomp a sizable table"

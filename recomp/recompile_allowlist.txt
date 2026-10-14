@@ -1,0 +1,1 @@
+# Exact N64Recomp output lines that are accepted. Each needs a comment above it explaining why.

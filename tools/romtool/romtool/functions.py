@@ -26,6 +26,7 @@ class Overrides:
     exempt: frozenset = frozenset()  # (section, start): runtime-replaced assembly; body checks skipped
     hardware: dict = field(default_factory=dict)  # (section, address) -> decision ("patch" | "harmless")
     extend: dict = field(default_factory=dict)  # (section, start) -> end: function contains later ones
+    elf_words: dict = field(default_factory=dict)  # (section, address) -> word in our ELF only (never the game's RAM)
 
 
 def load_overrides(path: str | Path) -> Overrides:
@@ -34,6 +35,9 @@ def load_overrides(path: str | Path) -> Overrides:
     for e in data.get("extend", []):
         if not e.get("reason") or int(e["end"]) <= int(e["address"]):
             raise RomError(f"extend override {e} needs end > address and a reason")
+    for e in data.get("elf_word", []):
+        if not e.get("reason"):
+            raise RomError(f"elf_word override {e} needs a reason")
     for e in data.get("hardware", []):
         if e.get("decision") not in ("patch", "harmless") or not e.get("reason"):
             raise RomError(f"hardware override {e} needs decision 'patch' or 'harmless' and a reason")
@@ -44,6 +48,7 @@ def load_overrides(path: str | Path) -> Overrides:
         exempt=frozenset(key(e) for e in data.get("exempt", [])),
         hardware={key(e): e["decision"] for e in data.get("hardware", [])},
         extend={key(e): int(e["end"]) for e in data.get("extend", [])},
+        elf_words={key(e): int(e["value"]) for e in data.get("elf_word", [])},
     )
 
 

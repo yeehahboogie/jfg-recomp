@@ -57,7 +57,9 @@ def cmd_build_elf(args) -> int:
     overrides = _with_libultra(rom, load_overrides(args.overrides), args.n64sym)
     program = build_program(rom, overrides)
     write_elf(out / "jfg.elf", program.sections, program.funcs, program.rels, program.entry)
-    modules = [section_name(i) for i in sorted(program.link_base)]
+    with_code = {f.section for f in program.funcs}
+    # N64Recomp only registers sections that contain functions; code-less modules become empty slots ("*")
+    modules = [section_name(i) if section_name(i) in with_code else "*" for i in sorted(program.link_base)]
     (out / "relocatable_sections.txt").write_text("\n".join(modules) + "\n")
     template = Path(args.template).read_text().replace("@GENERATED@", str(out))
     (out / "jfg.toml").write_text(template + "\n" + _hook_toml(program))
