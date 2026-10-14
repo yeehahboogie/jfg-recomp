@@ -74,7 +74,7 @@ scripts/smoke.sh              boot smoke test
 **Interfaces:**
 - Produces: `romtool.rom.RomError(Exception)`, `romtool.rom.EXPECTED_MD5: str`, `romtool.rom.ROM_SIZE = 0x2000000`, `normalize_byte_order(data: bytes) -> bytes`, `load_rom(path: str | os.PathLike) -> bytes` (normalised + verified). Test fixture `rom` (session-scoped `bytes`, skips if absent). `tests/synth.py` encoders (extended by later tasks).
 
-- [ ] **Step 1: Create the package skeleton and dev venv**
+- [x] **Step 1: Create the package skeleton and dev venv**
 
 `tools/romtool/pyproject.toml`:
 ```toml
@@ -124,7 +124,7 @@ tools/romtool/.venv/bin/pip install -q -e 'tools/romtool[test,disasm]'
 ```
 Expected: installs without errors.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tools/romtool/tests/conftest.py`:
 ```python
@@ -227,12 +227,12 @@ def test_real_rom(rom):
     assert rom[0x20:0x34].decode("ascii").strip() == "JET FORCE GEMINI"
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_rom.py`
 Expected: FAIL / collection error — `ModuleNotFoundError: No module named 'romtool.rom'`.
 
-- [ ] **Step 4: Implement `rom.py`**
+- [x] **Step 4: Implement `rom.py`**
 
 `tools/romtool/romtool/rom.py`:
 ```python
@@ -285,12 +285,12 @@ def load_rom(path: str | os.PathLike) -> bytes:
     return data
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_rom.py`
 Expected: 7 passed (`test_real_rom` passes when `jfg.z64` is present).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add .gitignore tools/romtool
