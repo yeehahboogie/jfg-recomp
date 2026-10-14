@@ -92,7 +92,8 @@ value = 0x29017FFF     # slti $at, $t0, 0x7FFF   (was 0xB: DP counter)
 
 # Modern controls (docs/superpowers/specs/2026-10-14-jfg-modern-controls-design.md)
 [[patches.hook]]
-func = "func_80043130"          # joyRead: latch this frame's modern input
+func = "func_80043130"          # joyRead, right after osContGetReadData (the frontend has just published this frame's input)
+before_vram = 0x800431BC
 text = "jfg_controls_latch(rdram, ctx);"
 
 [[patches.hook]]

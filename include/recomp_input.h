@@ -96,6 +96,8 @@ namespace recomp {
     bool get_input_digital(const std::span<const recomp::InputField> fields);
     void get_gyro_deltas(float* x, float* y);
     void get_mouse_deltas(float* x, float* y);
+    // Mouse movement since the previous poll in counts, without the sensitivity setting applied.
+    void get_mouse_deltas_raw(float* x, float* y);
     void get_right_analog(float* x, float* y);
 
     enum class InputDevice {

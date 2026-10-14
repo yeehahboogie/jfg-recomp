@@ -40,7 +40,7 @@ std::vector<jfg::InputEvent> jfg::parse_input_script(const std::string& script) 
         }
         std::stringstream fields(entry);
         std::string when, buttons;
-        InputEvent ev{0, 0, 0, 0, 0};
+        InputEvent ev{};
         if (!(fields >> when >> buttons)) {
             throw std::invalid_argument("JFG_INPUT_SCRIPT: expected 'T+D BUTTONS [X Y]' in '" + entry + "'");
         }
@@ -53,10 +53,17 @@ std::vector<jfg::InputEvent> jfg::parse_input_script(const std::string& script) 
             throw std::invalid_argument("JFG_INPUT_SCRIPT: bad time 'T+D' in '" + entry + "'");
         }
         ev.buttons = parse_buttons(buttons, entry);
-        if (fields >> ev.x) {
-            if (!(fields >> ev.y)) {
-                throw std::invalid_argument("JFG_INPUT_SCRIPT: stick needs X and Y in '" + entry + "'");
+        auto read_pair = [&](float* a, float* b, const char* what) {
+            if (!(fields >> *a)) {
+                return false;
             }
+            if (!(fields >> *b)) {
+                throw std::invalid_argument(std::string("JFG_INPUT_SCRIPT: ") + what + " in '" + entry + "'");
+            }
+            return true;
+        };
+        if (read_pair(&ev.x, &ev.y, "stick needs X and Y") && read_pair(&ev.rx, &ev.ry, "right stick needs RX and RY")) {
+            read_pair(&ev.mdx, &ev.mdy, "mouse needs MDX and MDY");
         }
         events.push_back(ev);
     }
@@ -64,11 +71,21 @@ std::vector<jfg::InputEvent> jfg::parse_input_script(const std::string& script) 
 }
 
 void jfg::apply_input_script(const std::vector<InputEvent>& events, double t, uint16_t* buttons, float* x, float* y) {
+    float rx = 0, ry = 0, mdx = 0, mdy = 0;
+    apply_input_script(events, t, buttons, x, y, &rx, &ry, &mdx, &mdy);
+}
+
+void jfg::apply_input_script(const std::vector<InputEvent>& events, double t, uint16_t* buttons, float* x, float* y,
+                             float* rx, float* ry, float* mdx, float* mdy) {
     for (const InputEvent& ev : events) {
         if (t >= ev.start && t < ev.start + ev.duration) {
             *buttons |= ev.buttons;
             *x = std::clamp(*x + ev.x, -1.0f, 1.0f);
             *y = std::clamp(*y + ev.y, -1.0f, 1.0f);
+            *rx = std::clamp(*rx + ev.rx, -1.0f, 1.0f);
+            *ry = std::clamp(*ry + ev.ry, -1.0f, 1.0f);
+            *mdx += ev.mdx;
+            *mdy += ev.mdy;
         }
     }
 }

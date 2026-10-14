@@ -5,7 +5,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-/* joyRead (0x80043130) entry: latch this frame's modern input. */
+/* joyRead (0x80043130) after osContGetReadData: latch this frame's modern input. */
 void jfg_controls_latch(uint8_t* rdram, recomp_context* ctx);
 /* controlPlayer (0x80032A48) entry, a0 = obj: per-player gate. */
 void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx);

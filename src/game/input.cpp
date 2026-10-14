@@ -795,6 +795,12 @@ void recomp::get_gyro_deltas(float* x, float* y) {
     *y = cur_rotation_delta[1] * sensitivity;
 }
 
+void recomp::get_mouse_deltas_raw(float* x, float* y) {
+    std::array<float, 2> cur_mouse_delta = InputState.mouse_delta;
+    *x = cur_mouse_delta[0];
+    *y = cur_mouse_delta[1];
+}
+
 void recomp::get_mouse_deltas(float* x, float* y) {
     std::array<float, 2> cur_mouse_delta = InputState.mouse_delta;
     float sensitivity = (float)recomp::get_mouse_sensitivity() / 100.0f;

@@ -402,19 +402,19 @@ Use a scripted run to Goldwood. The Goldwood script already uses N64 button name
   - `void latch()`: moves the published values into the frame snapshot and zeroes the accumulated mouse delta.
   - Input script fields: `T+D BUTTONS [X Y [RX RY [MDX MDY]]]`, where `MDX MDY` are mouse counts per game frame for the duration.
 
-- [ ] **Step 1: Failing tests.**
+- [x] **Step 1: Failing tests.**
   - `input_state_test`: two `publish` calls with mouse deltas 3 and 4, then `latch()` gives `frame().mouse_dx == 7`. A second `latch()` with no publish gives 0.
   - `input_script_test` additions: parsing `"5+1 - 0 0 0.5 -0.5 10 0"` gives `rx 0.5`, `ry -0.5`, `mdx 10`; `apply` at t=5.5 adds them.
 
-- [ ] **Step 2: Run, expect failures.**
+- [x] **Step 2: Run, expect failures.**
 
-- [ ] **Step 3: Implement.**
+- [x] **Step 3: Implement.**
   - `input_state.cpp` keeps a published copy and a mouse accumulator under a `std::mutex`. The frontend thread publishes; the game thread latches.
   - Extend `InputEvent` with `rx, ry, mdx, mdy` (default 0). `apply_input_script` gains `float* rx, float* ry, float* mdx, float* mdy` out-parameters. Keep the old overload for existing callers.
 
-- [ ] **Step 4: Run, expect OK.**
+- [x] **Step 4: Run, expect OK.**
 
-- [ ] **Step 5: Frontend publish.**
+- [x] **Step 5: Frontend publish.**
 
 In `get_n64_input` (Modern path), publish each call:
 - move: the float movement vector after deadzone, before the ±80 scaling;
@@ -424,11 +424,11 @@ In `get_n64_input` (Modern path), publish each call:
 
 `jfg_controls_latch` calls `jfg::controls::latch()`.
 
-- [ ] **Step 6: Debug check.**
+- [x] **Step 6: Debug check.**
 
 Add `look=(%.2f,%.2f) mouse=(%.1f,%.1f)` to the `JFG_DEBUG_CONTROLS` line. Run a script with `300+2 - 0 0 1 0` (right stick right) and `303+1 - 0 0 0 0 20 0` (mouse right). Expected: the log shows `look=(1.00,0.00)` for about 60 frames, and `mouse=(20.0,0.0)` per frame for about 30 frames.
 
-- [ ] **Step 7: Commit and push.**
+- [x] **Step 7: Commit and push.**
 
 ---
 

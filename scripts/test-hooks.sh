@@ -19,3 +19,5 @@ build/gate_test
 build/settings_test
 "$CXX" -std=c++20 -Wall -Iinclude src/jfg/controls/translate.cpp tests/controls/translate_test.cpp -o build/translate_test
 build/translate_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/controls/input_state.cpp tests/controls/input_state_test.cpp -o build/input_state_test
+build/input_state_test

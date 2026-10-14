@@ -7,6 +7,7 @@
 #include "jfg_input_script.h"
 #include "../jfg/controls/settings.h"
 #include "../jfg/controls/translate.h"
+#include "../jfg/controls/input_state.h"
 #include "recomp_input.h"
 #include "ultramodern/ultramodern.hpp"
 
@@ -87,7 +88,7 @@ static bool input_held(recomp::GameInput input) {
 }
 
 // The modern control scheme's actions as the N64 buttons the game reads (src/jfg/controls/translate.h).
-static uint16_t modern_n64_buttons() {
+static uint16_t modern_n64_buttons(bool* aim_out) {
     using recomp::GameInput;
     jfg::controls::Actions a;
     a.fire = input_held(GameInput::JFG_FIRE);
@@ -112,6 +113,7 @@ static uint16_t modern_n64_buttons() {
         aim_toggled = false;
     }
     aim_was_held = a.aim;
+    *aim_out = aim;
     return jfg::controls::to_n64_buttons(a, aim);
 }
 
@@ -125,12 +127,24 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
     }
 
     const bool modern = jfg::controls::settings().modern;
+    jfg::controls::ModernInput modern_in{};
     // Modern reads the right stick as look input itself, so it must not also act as the C-buttons.
     recomp::set_right_analog_suppressed(modern);
 
     if (!recomp::game_input_disabled()) {
         if (modern) {
-            cur_buttons = modern_n64_buttons();
+            cur_buttons = modern_n64_buttons(&modern_in.aim_held);
+            const float look_x = recomp::get_input_analog_unsuppressed(controller_input_mappings[(size_t)GameInput::JFG_LOOK_RIGHT])
+                               + recomp::get_input_analog_unsuppressed(keyboard_input_mappings[(size_t)GameInput::JFG_LOOK_RIGHT])
+                               - recomp::get_input_analog_unsuppressed(controller_input_mappings[(size_t)GameInput::JFG_LOOK_LEFT])
+                               - recomp::get_input_analog_unsuppressed(keyboard_input_mappings[(size_t)GameInput::JFG_LOOK_LEFT]);
+            const float look_y = recomp::get_input_analog_unsuppressed(controller_input_mappings[(size_t)GameInput::JFG_LOOK_UP])
+                               + recomp::get_input_analog_unsuppressed(keyboard_input_mappings[(size_t)GameInput::JFG_LOOK_UP])
+                               - recomp::get_input_analog_unsuppressed(controller_input_mappings[(size_t)GameInput::JFG_LOOK_DOWN])
+                               - recomp::get_input_analog_unsuppressed(keyboard_input_mappings[(size_t)GameInput::JFG_LOOK_DOWN]);
+            recomp::apply_joystick_deadzone(std::clamp(look_x, -1.0f, 1.0f), std::clamp(look_y, -1.0f, 1.0f),
+                                            &modern_in.stick_look_x, &modern_in.stick_look_y);
+            recomp::get_mouse_deltas_raw(&modern_in.mouse_dx, &modern_in.mouse_dy);
         } else {
             for (size_t i = 0; i < n64_button_values.size(); i++) {
                 size_t input_index = (size_t)GameInput::N64_BUTTON_START + i;
@@ -164,13 +178,17 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
     if (!input_script.empty()) {
         static const auto script_start = std::chrono::steady_clock::now();
         double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - script_start).count();
-        jfg::apply_input_script(input_script, t, &cur_buttons, &cur_x, &cur_y);
+        jfg::apply_input_script(input_script, t, &cur_buttons, &cur_x, &cur_y, &modern_in.stick_look_x,
+                                &modern_in.stick_look_y, &modern_in.mouse_dx, &modern_in.mouse_dy);
     }
 
     *buttons_out = cur_buttons;
     *x_out = std::clamp(cur_x, -1.0f, 1.0f);
     *y_out = std::clamp(cur_y, -1.0f, 1.0f);
     if (modern) {
+        modern_in.move_x = *x_out;
+        modern_in.move_y = *y_out;
+        jfg::controls::publish(modern_in);
         // The runtime reports +-1.0 as +-127; a real N64 stick tops out near +-80, which the game's tuning expects.
         *x_out *= 80.0f / 127.0f;
         *y_out *= 80.0f / 127.0f;

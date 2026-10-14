@@ -7,6 +7,7 @@
 #include "jfg_controls_hooks.h"
 #include "gate.h"
 #include "settings.h"
+#include "input_state.h"
 
 namespace {
 const bool debug = std::getenv("JFG_DEBUG_CONTROLS") != nullptr;
@@ -29,7 +30,7 @@ float read_f32(uint8_t* rdram, gpr base, int32_t offset) {
 }
 }
 
-extern "C" void jfg_controls_latch(uint8_t*, recomp_context*) {}
+extern "C" void jfg_controls_latch(uint8_t*, recomp_context*) { jfg::controls::latch(); }
 
 extern "C" void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx) {
     // controlPlayer(obj): pd = *(obj + 0x68)
@@ -56,11 +57,13 @@ extern "C" void jfg_controls_after_camera(uint8_t* rdram, recomp_context*) {
     const uint32_t pd = camera_pd;
     if (!debug || f.pd == 0 || pd != f.pd) return;
     const gpr p = kseg0(pd), o = kseg0(f.obj);
+    const jfg::controls::ModernInput& in = jfg::controls::frame();
     std::fprintf(stderr,
                  "[controls] f=%u active=%d cam=%d idx=%d chr=%d state=%u facing=%04X orbit=%04X pan=%04X follow=%u "
-                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X\n",
+                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d\n",
                  frame_no++, f.active, f.camera_kind, MEM_B(0, p), MEM_B(1, p) & 3, MEM_BU(0x568, p),
                  (uint16_t)MEM_H(0x11C, p), (uint16_t)MEM_H(0x104, p), (uint16_t)MEM_H(0x10A, p), MEM_BU(0x10C, p),
                  (uint16_t)MEM_H(0x00, cam0), (uint16_t)MEM_H(0x02, cam0), read_f32(rdram, cam0, 0x0C), read_f32(rdram, cam0, 0x10),
-                 read_f32(rdram, cam0, 0x14), read_f32(rdram, o, 0x0C), read_f32(rdram, o, 0x10), read_f32(rdram, o, 0x14), (uint16_t)MEM_H(0x00, o));
+                 read_f32(rdram, cam0, 0x14), read_f32(rdram, o, 0x0C), read_f32(rdram, o, 0x10), read_f32(rdram, o, 0x14), (uint16_t)MEM_H(0x00, o), in.stick_look_x, in.stick_look_y, in.mouse_dx,
+                 in.mouse_dy, in.move_x, in.move_y, in.aim_held);
 }
