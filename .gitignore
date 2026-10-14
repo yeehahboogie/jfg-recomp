@@ -86,3 +86,6 @@ cmake-build-*
 
 # project-local toolchain (unpacked .debs; no root needed)
 .toolchain/
+
+# Agent worktrees (Claude Code)
+/.claude/
