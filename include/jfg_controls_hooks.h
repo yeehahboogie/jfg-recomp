@@ -17,6 +17,8 @@ void jfg_controls_camera_begin(uint8_t* rdram, recomp_context* ctx);
 void jfg_free_camera_entry(uint8_t* rdram, recomp_context* ctx);
 /* Follow camera at 0x8002DFE8, where both orbit-heading paths join (s0 = pd): the free camera's yaw. */
 void jfg_free_camera_heading(uint8_t* rdram, recomp_context* ctx);
+/* controlGetManualAim (0x8003AABC) entry: returns 1 when it handled the call (Modern), 0 to run the original. */
+int jfg_manual_aim(uint8_t* rdram, recomp_context* ctx);
 /* Camera dispatcher before its epilogue (every path reaches 0x8002B954): the free camera's pitch, debug log. */
 void jfg_controls_after_camera(uint8_t* rdram, recomp_context* ctx);
 #ifdef __cplusplus

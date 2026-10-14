@@ -3,13 +3,13 @@
 namespace jfg::controls {
 // Modern replacement for controlGetManualAim (0x8003AABC). The stick path is the original's logic on the N64 stick
 // range (+-80); the mouse path moves the crosshair within its box and turns the body or pitch base with the overflow.
-// Angles are s16 binary angles; positive pitch is down (like the camera), and aiming right lowers the yaw offset.
+// Angles are s16 binary angles; a positive pitch offset aims up, and aiming right lowers the yaw offset.
 
 struct AimLimits { int16_t yaw_lim, pitch_lim, pitch_min, pitch_max; }; // call args: offset box, pitch-base clamp
 struct AimTuning {             // the game's constants (the hook reads them from RDRAM)
     float rim_rate[20];        // 0x800A2E60: rim turn rate by min(|raw| - 45, 19)
-    float rate_smooth;         // 0x800AC3CC: rim rate smoothing, Powerf(rate_smooth, ticks)
-    float zoom_in_vel, zoom_out_vel; // 0x800AC3C4 / 0x800AC3C8
+    float rate_smooth;         // 0x800ABFCC: rim rate smoothing, Powerf(rate_smooth, ticks)
+    float zoom_in_vel, zoom_out_vel; // 0x800ABFC4 / 0x800ABFC8
 };
 struct AimState {
     int16_t yaw_off = 0, pitch_off = 0;                   // crosshair offsets this call returns

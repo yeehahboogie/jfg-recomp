@@ -35,19 +35,19 @@ int main() {
         assert(o.next.yaw_off == -0xE38);
         assert(o.next.facing == (int16_t)(uint16_t)(0x8000 - (100000 - 0xE38)));
     }
-    {   // mouse down aims down (positive pitch is down, like the camera); invert flips it
+    {   // mouse down aims down: a positive pitch offset is up (seen in game: the crosshair rises); invert flips it
         AimOutput o = aim_step(base(), mouse(0, 50), true, lim, t, opts, 2.f);
-        assert(o.next.pitch_off == 50);
+        assert(o.next.pitch_off == -50);
         AimOptions inv = opts; inv.invert_mouse_y = true;
         o = aim_step(base(), mouse(0, 50), true, lim, t, inv, 2.f);
-        assert(o.next.pitch_off == -50);
+        assert(o.next.pitch_off == 50);
     }
     {   // aim_pitch_overflow_moves_base_clamped
         AimState s = base(); s.pitch_off = 0xE00; s.pitch_base = 0x2000;
-        AimOutput o = aim_step(s, mouse(0, 100000), true, lim, t, opts, 2.f);
+        AimOutput o = aim_step(s, mouse(0, -100000), true, lim, t, opts, 2.f);
         assert(o.next.pitch_off == 0xE38 && o.next.pitch_base == 0x2AAA);
         s.pitch_off = -0xE00; s.pitch_base = -0x2000;
-        o = aim_step(s, mouse(0, -100000), true, lim, t, opts, 2.f);
+        o = aim_step(s, mouse(0, 100000), true, lim, t, opts, 2.f);
         assert(o.next.pitch_off == -0xE38 && o.next.pitch_base == -0x2AAA);
     }
     {   // aim_mouse_wins
@@ -63,11 +63,12 @@ int main() {
     {   // stick: the game's position mapping on the N64 range (+-80): quarter tilt = raw 20 = half the box
         AimOutput o = aim_step(base(), stick(0.25f, 0), true, lim, t, opts, 2.f);
         assert(o.next.yaw_off == (0xE38 * -20) / 40 && !o.mouse_mode);
-        o = aim_step(base(), stick(0, 0.25f), false, lim, t, opts, 2.f); // stick up aims up
-        assert(o.next.pitch_off == (0xE38 * -20) / 40);
+        // Stick up aims up. (The original N64 stick is inverted here: up gives a negative offset, aiming down.)
+        o = aim_step(base(), stick(0, 0.25f), false, lim, t, opts, 2.f);
+        assert(o.next.pitch_off == (0xE38 * 20) / 40);
         AimOptions inv = opts; inv.invert_stick_y = true;
         o = aim_step(base(), stick(0, 0.25f), false, lim, t, inv, 2.f);
-        assert(o.next.pitch_off == (0xE38 * 20) / 40);
+        assert(o.next.pitch_off == (0xE38 * -20) / 40);
     }
     {   // stick centred in stick mode: crosshair centred (original behaviour)
         AimState s = base(); s.yaw_off = 500;

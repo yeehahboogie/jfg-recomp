@@ -10,6 +10,7 @@
 #include "settings.h"
 #include "input_state.h"
 #include "free_camera.h"
+#include "aim.h"
 #include "recomp_input.h"
 
 namespace {
@@ -33,6 +34,17 @@ struct {
     jfg::controls::Vec3 orig, written;
     int16_t orig_pitch = 0, written_pitch = 0;
 } pitch_applied;
+
+// Aim controller (spec §4.3): native controlGetManualAim in Modern.
+constexpr gpr control_keys = (gpr)(int32_t)0x800F6DA0;    // controlKeys; controlDkeys (pressed) +4, released +8
+constexpr uint16_t c_up = 0x0008, c_down = 0x0004;         // next / previous weapon in Modern; zoom with the zoom weapon
+constexpr gpr rim_rate_table = (gpr)(int32_t)0x800A2E60;   // 20 floats
+constexpr gpr rim_rate_smooth = (gpr)(int32_t)0x800ABFCC; // lui 0x800B, -0x4034
+constexpr gpr zoom_in_vel = (gpr)(int32_t)0x800ABFC4, zoom_out_vel = (gpr)(int32_t)0x800ABFC8;
+jfg::controls::AimState aim_state;   // offsets persist across calls in mouse mode
+bool aim_mouse_mode = false;
+uint32_t last_aim_frame = 0xFFFFFFFF;
+int16_t last_yaw_off = 0, last_pitch_off = 0; // for the debug log
 
 bool scheme_modern() { return jfg::controls::settings().modern; }
 
@@ -139,6 +151,93 @@ extern "C" void jfg_free_camera_heading(uint8_t* rdram, recomp_context* ctx) {
     }
 }
 
+extern "C" void func_80047C1C(uint8_t* rdram, recomp_context* ctx); // the player's current weapon (idx, chr)
+
+extern "C" int jfg_manual_aim(uint8_t* rdram, recomp_context* ctx) {
+    // controlGetManualAim(obj, pd, yawLim, pitchLim, pitchMin, pitchMax, &yawOff, &pitchOff, ticks) at entry:
+    // a0..a3 then the caller's stack args at sp+0x10.
+    const uint32_t pd = (uint32_t)ctx->r5;
+    if (!is_player0(pd)) return 0;
+    const gpr p = kseg0(pd), sp = ctx->r29;
+    if ((MEM_B(1, p) & 3) == 3) return 0; // hovership: the original
+    const jfg::controls::AimLimits lim{(int16_t)ctx->r6, (int16_t)ctx->r7, (int16_t)MEM_W(0x10, sp),
+                                       (int16_t)MEM_W(0x14, sp)};
+    const gpr yaw_off_ptr = (gpr)(int32_t)MEM_W(0x18, sp), pitch_off_ptr = (gpr)(int32_t)MEM_W(0x1C, sp);
+    const float ticks = read_f32(rdram, sp, 0x20);
+
+    jfg::controls::AimTuning tuning{};
+    for (int i = 0; i < 20; i++) tuning.rim_rate[i] = read_f32(rdram, rim_rate_table, 4 * i);
+    tuning.rate_smooth = read_f32(rdram, rim_rate_smooth, 0);
+    tuning.zoom_in_vel = read_f32(rdram, zoom_in_vel, 0);
+    tuning.zoom_out_vel = read_f32(rdram, zoom_out_vel, 0);
+    bool tuning_ok = std::isfinite(tuning.rate_smooth) && std::isfinite(tuning.zoom_in_vel) &&
+                     std::isfinite(tuning.zoom_out_vel) && std::isfinite(ticks);
+    for (float r : tuning.rim_rate) tuning_ok = tuning_ok && std::isfinite(r);
+    if (!tuning_ok) { // fail loudly and leave aiming to the original rather than guess
+        static bool reported = false;
+        if (!reported) {
+            reported = true;
+            std::fprintf(stderr, "[controls] controlGetManualAim constants are not finite; using the original aim\n");
+        }
+        return 0;
+    }
+
+    // The zoom weapon (type 7), as the original decides it. From here on the original isn't run, so calling into
+    // the game may clobber the argument registers.
+    ctx->r4 = MEM_B(0, p);
+    ctx->r5 = MEM_B(1, p);
+    func_80047C1C(rdram, ctx);
+    const gpr weapon = ctx->r2;
+    jfg::controls::AimInput in{};
+    in.zoom_weapon = weapon != 0 && MEM_BU(0x70, weapon) == 7 && MEM_BU(0x18E, p) == 0;
+    const uint16_t keys = (uint16_t)MEM_W(0, control_keys);
+    in.zoom_dir = (keys & c_up) ? 1 : (keys & c_down) ? -1 : 0;
+    if (in.zoom_weapon) {
+        // The wheel / bumpers zoom; don't also cycle the weapon this frame (weapon selection runs after the aim state).
+        for (int i = 0; i < 3; i++) MEM_W(4 * i, control_keys) = MEM_W(4 * i, control_keys) & ~(int32_t)(c_up | c_down);
+    }
+    const jfg::controls::ModernInput& modern = jfg::controls::frame();
+    in.mouse_dx = modern.mouse_dx;
+    in.mouse_dy = modern.mouse_dy;
+    in.stick_x = modern.stick_look_x;
+    in.stick_y = modern.stick_look_y;
+
+    // A new aim session starts with the crosshair centred.
+    if (last_aim_frame + 1 < game_frame || last_aim_frame > game_frame) {
+        aim_state.yaw_off = aim_state.pitch_off = 0;
+    }
+    last_aim_frame = game_frame;
+    aim_state.smoothed_yaw_off = (int16_t)MEM_H(0x1CE, p);
+    aim_state.smoothed_pitch = (int16_t)MEM_H(0x1E0, p);
+    aim_state.facing = (int16_t)MEM_H(0x11C, p);
+    aim_state.pitch_base = (int16_t)MEM_H(0x1E2, p);
+    aim_state.yaw_rate = read_f32(rdram, p, 0x1E4);
+    aim_state.pitch_rate = read_f32(rdram, p, 0x1E8);
+    aim_state.zoom = read_f32(rdram, p, 0x1EC);
+    aim_state.zoom_vel = read_f32(rdram, p, 0x1F0);
+
+    const auto& st = jfg::controls::settings();
+    const jfg::controls::AimOptions opts{recomp::get_mouse_sensitivity() * mouse_units_per_sensitivity * st.aim_mult,
+                                         st.invert_mouse_y, st.invert_stick_y};
+    const jfg::controls::AimOutput out =
+        jfg::controls::aim_step(aim_state, in, aim_mouse_mode, lim, tuning, opts, ticks);
+    aim_state = out.next;
+    aim_mouse_mode = out.mouse_mode;
+
+    MEM_H(0, yaw_off_ptr) = aim_state.yaw_off;
+    MEM_H(0, pitch_off_ptr) = aim_state.pitch_off;
+    MEM_H(0x11C, p) = aim_state.facing;
+    MEM_H(0x1E2, p) = aim_state.pitch_base;
+    write_f32(rdram, p, 0x1E4, aim_state.yaw_rate);
+    write_f32(rdram, p, 0x1E8, aim_state.pitch_rate);
+    if (in.zoom_weapon) write_f32(rdram, p, 0x1EC, aim_state.zoom);
+    write_f32(rdram, p, 0x1F0, aim_state.zoom_vel);
+    last_yaw_off = aim_state.yaw_off;
+    last_pitch_off = aim_state.pitch_off;
+    ctx->r2 = out.return_value;
+    return 1;
+}
+
 namespace {
 // The free camera's pitch: after the dispatcher (and its water-line fix-ups) placed the follow camera, orbit it up or
 // down around the point it looks at. Undone at the next follow-camera entry.
@@ -172,11 +271,11 @@ extern "C" void jfg_controls_after_camera(uint8_t* rdram, recomp_context*) {
     const jfg::controls::ModernInput& in = jfg::controls::frame();
     std::fprintf(stderr,
                  "[controls] f=%u active=%d cam=%d idx=%d chr=%d state=%u facing=%04X orbit=%04X pan=%04X follow=%u "
-                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d fc=(%04X,%.2f,%.2f) ticks=%.1f\n",
+                 "camyaw=%04X campitch=%04X campos=(%.1f,%.1f,%.1f) pos=(%.1f,%.1f,%.1f) objyaw=%04X look=(%.2f,%.2f) mouse=(%.1f,%.1f) move=(%.2f,%.2f) aim=%d fc=(%04X,%.2f,%.2f) ticks=%.1f aimoff=(%d,%d) base=%04X mm=%d\n",
                  frame_no++, f.active, camera_kind, MEM_B(0, p), MEM_B(1, p) & 3, MEM_BU(0x568, p),
                  (uint16_t)MEM_H(0x11C, p), (uint16_t)MEM_H(0x104, p), (uint16_t)MEM_H(0x10A, p), MEM_BU(0x10C, p),
                  (uint16_t)MEM_H(0x00, cam0), (uint16_t)MEM_H(0x02, cam0), read_f32(rdram, cam0, 0x0C), read_f32(rdram, cam0, 0x10),
                  read_f32(rdram, cam0, 0x14), read_f32(rdram, o, 0x0C), read_f32(rdram, o, 0x10), read_f32(rdram, o, 0x14), (uint16_t)MEM_H(0x00, o), in.stick_look_x, in.stick_look_y, in.mouse_dx,
                  in.mouse_dy, in.move_x, in.move_y, in.aim_held, (uint16_t)free_cam.yaw, free_cam.pitch, free_cam.idle,
-                 camera_ticks);
+                 camera_ticks, last_yaw_off, last_pitch_off, (uint16_t)MEM_H(0x1E2, p), aim_mouse_mode);
 }

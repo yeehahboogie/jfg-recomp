@@ -70,7 +70,7 @@ AimOutput aim_step(const AimState& cur, const AimInput& in, bool mouse_mode, con
 
     if (mouse_mode) {
         const float k = opt.mouse_units_per_count * sens;
-        const float dy = opt.invert_mouse_y ? -in.mouse_dy : in.mouse_dy;
+        const float dy = opt.invert_mouse_y ? in.mouse_dy : -in.mouse_dy; // mouse down aims down (offset down)
         const int64_t yaw_over = move_in_box(s.yaw_off, -std::llround(in.mouse_dx * k), yaw_box);
         const int64_t pitch_over = move_in_box(s.pitch_off, std::llround(dy * k), pitch_box);
         s.facing = (int16_t)(uint16_t)(uint64_t)(s.facing + yaw_over);
@@ -79,9 +79,10 @@ AimOutput aim_step(const AimState& cur, const AimInput& in, bool mouse_mode, con
         return {s, true, in.zoom_weapon ? 1 : 0};
     }
 
-    // The original: the game negates the raw stick, maps +-40 to the box, and turns at the rim.
+    // The original: the game negates the raw stick, maps +-40 to the box, and turns at the rim. Its pitch is inverted
+    // (N64 stick up aims down); the modern default is stick up aims up.
     int raw_x = -(int)std::lround(in.stick_x * 80.f);
-    int raw_y = -(int)std::lround((opt.invert_stick_y ? -in.stick_y : in.stick_y) * 80.f);
+    int raw_y = (int)std::lround((opt.invert_stick_y ? -in.stick_y : in.stick_y) * 80.f);
     const float yaw_target = rim_target(raw_x, s.smoothed_yaw_off, yaw_box, t, 1.f / z);
     const float pitch_target = rim_target(raw_y, s.smoothed_pitch, pitch_box, t, 1.f / z);
     const float k = 1.f - powerf(t.rate_smooth, iticks);

@@ -622,14 +622,14 @@ If the visible yaw or pitch direction is opposite to the stick, flip the constan
 - Consumes: `aim_step` (Task 7).
 - Produces: hook `jfg_manual_aim(rdram, ctx)`. It returns 1 when it handled the call (then the hook text does `return;`), or 0 to fall through to the original.
 
-- [ ] **Step 1: Hook:**
+- [x] **Step 1: Hook:**
 ```toml
 [[patches.hook]]
 func = "func_8003AABC"          # controlGetManualAim(obj, pd, yawLim, pitchLim, pitchMin, pitchMax, &yawOff, &pitchOff, ticks)
 text = "if (jfg_manual_aim(rdram, ctx)) return;"
 ```
 
-- [ ] **Step 2: Implement `jfg_manual_aim`.**
+- [x] **Step 2: Implement `jfg_manual_aim`.**
   - If `!g_frame.active`, or `pd` (a1) isn't `g_frame.pd`, or the hovership flag `(pd+1 & 3) == 3` is set, return 0.
   - Arguments come from the caller's frame at entry (Juno's call site confirms the layout):
     - `yawLim = (int16)ctx->r6`, `pitchLim = (int16)ctx->r7`;
@@ -642,19 +642,19 @@ text = "if (jfg_manual_aim(rdram, ctx)) return;"
   - Call `aim_step`, then write back the offsets, facing, pitch base and zoom.
   - Return value: `ctx->r2 = zoomed ? 1 : 0`, as the original returns. Then return 1.
 
-- [ ] **Step 3: Build** (recompile and cmake).
+- [x] **Step 3: Build** (recompile and cmake).
 
-- [ ] **Step 4: Debug log check.**
+- [x] **Step 4: Debug log check.**
 
 Script: Goldwood, then `304+3 R`, plus `304.5+1 R 0 0 0 0 30 0` (mouse right while aiming).
 
 Expected per frame while R is held: `state=11`, the logged `yaw_off` reaches the box edge (−0xE38) and `facing` then decreases. Add `yaw_off` and `pitch_off` to the debug line from the pointers saved in the hook.
 
-- [ ] **Step 5: Visual check.**
+- [x] **Step 5: Visual check.**
 
 `scripts/screenshots.sh build/diag/aim 304 305 306` with that script. The over-the-shoulder camera is visible; the crosshair moves right, then the view turns.
 
-- [ ] **Step 6: Commit and push.**
+- [x] **Step 6: Commit and push.**
 
 ---
 
@@ -789,11 +789,17 @@ Recorded during execution: runtime-confirmed facts with log references.
   - Juno is controllable and standing from about 287 s to 296 s in the Goldwood script, a safe window for scripted test inputs. The scripted run then reaches Magnus's dialogue trigger at about 300.3 s.
 - (f) `controlGetManualAim` (0x8003AABC), decoded for Task 7:
   - **Inputs.** It reads the raw stick `0x800F6DB4`/`B8` negated. The zoom weapon is weapon type 7 (`0x80047C1C(idx, chr)` → `+0x70`) with `pd+0x18E` clear.
-  - **Zoom.** The zoom velocity `pd+0x1F0` eases toward the slot 7/8 rates (`0x800AC3C4`/`C8`) by `1 − Powerf(0.875, (int)ticks)`. Zoom `pd+0x1EC` is clamped to [1, 5].
+  - **Zoom.** The zoom velocity `pd+0x1F0` eases toward the slot 7/8 rates (`0x800ABFC4`/`C8`) by `1 − Powerf(0.875, (int)ticks)`. Zoom `pd+0x1EC` is clamped to [1, 5].
   - **Sensitivity and box.** `s = 1/((z−1)·z/2+1)`, and the offset box is `(int)(lim·s)`.
-  - **Rim turning.** At `|raw| ≥ 46`, with the smoothed offset (`pd+0x1CE`, pitch `pd+0x1E0`) within 0x2D8 of the box edge, the rate target is `table[min(|raw|−45, 19)]/z`. It is smoothed into `pd+0x1E4`/`1E8` by `1 − Powerf(*0x800AC3CC, ticks)`.
+  - **Rim turning.** At `|raw| ≥ 46`, with the smoothed offset (`pd+0x1CE`, pitch `pd+0x1E0`) within 0x2D8 of the box edge, the rate target is `table[min(|raw|−45, 19)]/z`. It is smoothed into `pd+0x1E4`/`1E8` by `1 − Powerf(*0x800ABFCC, ticks)`.
   - **Outputs.** `*off = box·clamp(raw, ±40)/40`. `facing += (int)(rate·ticks)`, and the pitch base `+= …`, clamped to [pitchMin, pitchMax]. It returns the zoom-weapon flag.
-  - **Signs.** Positive pitch is down (stick up gives negative offsets), so mouse down must *increase* the pitch offset (the spec's `pitchOff −= dy` was inverted).
+  - **Signs.** A positive pitch offset aims **up**. Verified in game: mouse down with `−dy` brings the crosshair to the ground (`build/diag/aim3`), and a positive offset raises it. So the original N64 stick is inverted in aim mode (stick up gives a negative offset), and the spec's `pitchOff −= dy` is right.
+- (g) Aim in game (Task 8, `build/diag/aim/run.log`):
+  - Mouse right takes the crosshair to −3640, then the body turns right.
+  - Mouse down and stick up move the crosshair in the right directions.
+  - Full right stick at the box edge rim-turns at ≈378 units/tick (the game's 380).
+  - The pitch base stays stable, and releasing R returns to the free camera without a snap.
+  - Zoom (weapon type 7) couldn't be exercised: no zoom weapon at the start of Goldwood. The user checks it in the playtest.
 - (e) Free camera checks (Task 6 Step 5, `build/diag/fc/run.log`):
   - (a) PASS: right stick for 0.5 s while standing moves the orbit 0 → 0x3FFC (90°), and `facing` stays 0x8000 (f=30–42).
   - (b) PASS: running left after the look, the free camera holds the orbit until 1.5 s after the look ended, then the game swings it toward behind Juno (0x3FFC → 0xF757, f=87–162) and stops when she stops.
