@@ -3323,11 +3323,11 @@ Facts to build on (Task 6 research):
 Run: `JFG_DEBUG_MODULES=1 timeout 30 build/JFGRecompiled 2>&1 | tee build/run1.log | grep -m3 -E "GBI|HASH|Detected name"`
 Expected: `Unable to find a matching GBI …`. (If the ROM is not yet stored by the launcher, pick `jfg.z64` in the launcher UI once; ask the user to do this if no display is available to this shell.)
 
-- [ ] **Step 2: Get JFG's hashes**
+- [x] **Step 2: Get JFG's hashes**
 
 In `lib/rt64/src/gbi/rt64_gbi.cpp`, add a temporary database instance for JFG whose text and data hashes are `0xFFFFFFFFFFFFFFFF` at sizes covering JFG's ucode (text `0x1000`, data `0x800`, following the existing entries' structure), rebuild, run as in Step 1, and record the printed `HASH`/`SIZE` pairs. Replace the temporary values with the real ones.
 
-- [ ] **Step 3: Add the family**
+- [x] **Step 3: Add the family**
 
 1. `rt64_gbi.h`: add `F3DDKR` and `F3DJFG` to `enum class GBIUCode`.
 2. `rt64_gbi_f3ddkr.{h,cpp}`: namespace `GBI_F3DDKR` with `setup(GBI*)` = `GBI_F3D::setup` + handlers for the DKR commands listed above; `GBI_F3DJFG::setup` = `GBI_F3DDKR::setup` with the JFG `G_DMA_VTX` variant.
@@ -3338,7 +3338,7 @@ In `lib/rt64/src/gbi/rt64_gbi.cpp`, add a temporary database instance for JFG wh
 
 Run the port and ares side by side (`ares jfg.z64`) and compare: Rare logo, intro, title, file select, first Goldwood room. Fix one visual difference at a time (missing geometry → vertex/triangle decoding; wrong placement → matrix slots/offsets; sprites facing wrong way → billboarding; wrong textures → texture offset/coords). Screenshots go in `build/compare/` (not committed).
 
-- [ ] **Step 5: Export the patch and make it reproducible**
+- [x] **Step 5: Export the patch and make it reproducible**
 
 ```bash
 git -C lib/rt64 add -A && git -C lib/rt64 -c user.name=jfg -c user.email=jfg@localhost commit -qm "Add JFG (DKR-family) GBI"

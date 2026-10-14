@@ -1,0 +1,425 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index fc06930..4579f5f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -322,6 +322,7 @@ set (SOURCES
+     "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dex2.cpp"
+     "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dgolden.cpp"
+     "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dpd.cpp"
++    "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3djfg.cpp"
+     "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dwave.cpp"
+     "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dzex2.cpp"
+     "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_l3dex2.cpp"
+diff --git a/src/gbi/rt64_gbi.cpp b/src/gbi/rt64_gbi.cpp
+index 7006549..14801d6 100644
+--- a/src/gbi/rt64_gbi.cpp
++++ b/src/gbi/rt64_gbi.cpp
+@@ -11,6 +11,7 @@
+ #include "rt64_gbi_f3d.h"
+ #include "rt64_gbi_f3dgolden.h"
+ #include "rt64_gbi_f3dpd.h"
++#include "rt64_gbi_f3djfg.h"
+ #include "rt64_gbi_f3dex.h"
+ #include "rt64_gbi_f3dex2.h"
+ #include "rt64_gbi_f3dwave.h"
+@@ -60,6 +61,7 @@ namespace RT64 {
+     const GBIInstance   F3D_WAYNE                 = { "2.0D, 04-01-96 (F3D WG 3D Hockey)",         GBIUCode::F3D,         { false,  false,  false,  false,  false } }; // Needs confirmation.
+     const GBIInstance   F3D_GOLDEN                = { "SW Version: 2.0G, 09-30-96 (GE007)",        GBIUCode::F3DGOLDEN,   { false,  false,  false,  false,  false } }; // Needs confirmation.
+     const GBIInstance   F3D_PD                    = { "SW Version: Unknown (PD)",                  GBIUCode::F3DPD,       { false,  false,  false,  false,  false } };
++    const GBIInstance   F3D_JFG                   = { "SW Version: Unknown (JFG)",                 GBIUCode::F3DJFG,      { false,  false,  false,  false,  false } };
+     const GBIInstance   F3D_WAVE                  = { "SW Version: 2.0D, 04-01-96 (Wave Race)",    GBIUCode::F3DWAVE,     { false,  false,  false,  false,  false } }; // Needs confirmation.
+     const GBIInstance   F3DEX_0_95                = { "F3DEX 0.95",                                GBIUCode::F3DEX,       { false,  false,  false,  false,  false } }; // Needs confirmation.
+     const GBIInstance   F3DLX_0_95                = { "F3DLX 0.95",                                GBIUCode::F3DEX,       { true,   false,  false,  false,  false } }; // Needs confirmation.
+@@ -160,7 +162,8 @@ namespace RT64 {
+     // 
+     //                  Length      Hash                    Known instances               
+     //     
+-    static std::array<GBISegment, 94> textSegments = {
++    static std::array<GBISegment, 95> textSegments = {
++            GBISegment{ 0x1630,     0x65CF14B22F96377EULL,  { &F3D_JFG } }, // Jet Force Gemini (USA)
+             GBISegment{ 0x1408,     0x9C0926F5E466BE70ULL,  { &F3D_SDK_E } }, // Needs confirmation.
+             GBISegment{ 0x1400,     0x34EAA6E921BCF1B2ULL,  { &F3D_SDK_F, &F3D_SDK_UNKNOWN_G, &F3D_SDK_UNKNOWN_H } }, // Needs confirmation.
+             GBISegment{ 0x1408,     0x3E05E9BBE814C700ULL,  { &F3D_FIFO_SDK_E } }, // Needs confirmation.
+@@ -257,7 +260,8 @@ namespace RT64 {
+             GBISegment{ 0x10B0,     0xE8028E4BC6529E6EULL,  { &ZSORTP_0_33 } }, // Needs confirmation.
+     };
+ 
+-    static std::array<GBISegment, 105> dataSegments = {
++    static std::array<GBISegment, 106> dataSegments = {
++            GBISegment{ 0x800,      0x84AE0F119D75BD2CULL,  { &F3D_JFG } }, // Jet Force Gemini (USA)
+             GBISegment{ 0x800,      0xEEB10D73400213B3ULL,  { &F3D_SDK_E } }, // Needs confirmation.
+             GBISegment{ 0x800,      0x49651E384B48F694ULL,  { &F3D_SDK_F } }, // Needs confirmation.
+             GBISegment{ 0x800,      0x1A736198F90E81C5ULL,  { &F3D_SDK_UNKNOWN_G } }, // Needs confirmation.
+@@ -478,6 +482,9 @@ namespace RT64 {
+             case GBIUCode::F3DPD:
+                 GBI_F3DPD::setup(&gbi);
+                 break;
++            case GBIUCode::F3DJFG:
++                GBI_F3DJFG::setup(&gbi);
++                break;
+             case GBIUCode::F3DWAVE:
+                 GBI_F3DWAVE::setup(&gbi);
+                 break;
+diff --git a/src/gbi/rt64_gbi.h b/src/gbi/rt64_gbi.h
+index 69c35d2..df2ebdd 100644
+--- a/src/gbi/rt64_gbi.h
++++ b/src/gbi/rt64_gbi.h
+@@ -28,6 +28,7 @@ namespace RT64 {
+         S2DEX,
+         S2DEX2,
+         L3DEX2,
++        F3DJFG,
+         Count
+     };
+ 
+diff --git a/src/gbi/rt64_gbi_f3djfg.cpp b/src/gbi/rt64_gbi_f3djfg.cpp
+new file mode 100644
+index 0000000..4a7ec96
+--- /dev/null
++++ b/src/gbi/rt64_gbi_f3djfg.cpp
+@@ -0,0 +1,137 @@
++//
++// RT64
++//
++
++#include "rt64_gbi_f3djfg.h"
++
++#include "hle/rt64_interpreter.h"
++
++#include "rt64_gbi_f3d.h"
++
++#define F3DJFG_G_DMA_MTX        0x01
++#define F3DJFG_G_DMA_TEX_OFFSET 0x02
++#define F3DJFG_G_DMA_VTX        0x04
++#define F3DJFG_G_DMA_TRI        0x05
++#define F3DJFG_G_DMA_DL         0x07
++#define F3DJFG_G_DMA_OFFSETS    0xBF
++#define F3DJFG_VTX_APPEND       0x00010000
++
++namespace RT64 {
++    namespace GBI_F3DJFG {
++        // A full fixed-point matrix (64 bytes) is loaded into one of four slots. The command has two forms:
++        // with a zero slot field (Diddy Kong Racing style) the slot comes from bits 22-23 and the matrix is
++        // absolute; otherwise (Jet Force Gemini style) bit 23 asks for it to be applied on top of slot 0.
++        void dmaMatrix(State *state, DisplayList **dl) {
++            const uint32_t w0 = (*dl)->w0;
++            if ((w0 & 0xFFFF) != 64) {
++                return;
++            }
++
++            uint32_t index = (w0 >> 16) & 0xF;
++            bool multiply;
++            if (index == 0) {
++                index = (w0 >> 22) & 0x3;
++                multiply = false;
++            }
++            else {
++                multiply = ((w0 >> 23) & 0x1) != 0;
++            }
++
++            RSP *rsp = state->rsp.get();
++            const uint32_t address = rsp->dkr.mtxOffset + rsp->fromSegmentedMasked((*dl)->w1);
++            const hlslpp::float4x4 matrix = reinterpret_cast<const FixedMatrix *>(state->fromRDRAM(address))->toMatrix4x4();
++            const uint32_t slot = index & 3;
++            if ((slot == 0) && !multiply) {
++                rsp->setViewProjDKR(matrix, address);
++                rsp->dkr.slots[0] = hlslpp::float4x4::identity();
++                rsp->dkr.slotAbsolute[0] = false;
++            }
++            else {
++                rsp->dkr.slots[slot] = matrix;
++                rsp->dkr.slotAbsolute[slot] = !multiply;
++            }
++
++            rsp->dkr.activeSlot = slot;
++            rsp->applyMatrixSlotDKR();
++        }
++
++        void dmaTexOffset(State *state, DisplayList **dl) {
++            state->rsp->dkr.texOffset = state->rsp->fromSegmentedMasked((*dl)->w1);
++        }
++
++        // Jet Force Gemini's vertex count is used as is (Diddy Kong Racing's adds one). With billboarding on,
++        // an appending load starts after vertex 0, which holds the billboard's origin.
++        void dmaVertex(State *state, DisplayList **dl) {
++            const uint32_t w0 = (*dl)->w0;
++            RSP *rsp = state->rsp.get();
++            if (w0 & F3DJFG_VTX_APPEND) {
++                if (rsp->dkr.billboard) {
++                    rsp->dkr.vertexIndex = 1;
++                }
++            }
++            else {
++                rsp->dkr.vertexIndex = 0;
++            }
++
++            const uint32_t count = (w0 >> 19) & 0x1F;
++            const uint32_t dstIndex = rsp->dkr.vertexIndex + ((w0 >> 9) & 0x1F);
++            const uint32_t address = rsp->dkr.vtxOffset + rsp->fromSegmentedMasked((*dl)->w1);
++            rsp->setVertexDKR(address, uint8_t(count), dstIndex);
++            rsp->dkr.vertexIndex += count;
++        }
++
++        void dmaTriangles(State *state, DisplayList **dl) {
++            const uint32_t w0 = (*dl)->w0;
++            RSP *rsp = state->rsp.get();
++            const uint8_t textureOn = (w0 >> 16) & 0xF;
++            if (rsp->textureState.on != textureOn) {
++                rsp->setTexture(rsp->textureState.tile, rsp->textureState.levels, textureOn, rsp->textureState.sc, rsp->textureState.tc);
++            }
++
++            rsp->drawTrianglesDKR(rsp->fromSegmentedMasked((*dl)->w1), ((w0 >> 20) & 0xF) + 1);
++            rsp->dkr.vertexIndex = 0;
++        }
++
++        // Runs a display list for a fixed number of commands, then returns to the caller (the interpreter
++        // counts them down). The count includes this command, which the interpreter ticks off right away.
++        void dmaDisplayList(State *state, DisplayList **dl) {
++            const uint32_t count = ((*dl)->w0 >> 16) & 0xFF;
++            state->pushReturnAddress(*dl);
++            state->rsp->dkr.dlCount = int(count) + 1;
++            const uint32_t rdramAddress = state->rsp->fromSegmentedMasked((*dl)->w1);
++            *dl = reinterpret_cast<DisplayList *>(state->fromRDRAM(rdramAddress)) - 1;
++        }
++
++        void dmaOffsets(State *state, DisplayList **dl) {
++            state->rsp->dkr.mtxOffset = (*dl)->w0 & 0xFFFFFF;
++            state->rsp->dkr.vtxOffset = (*dl)->w1 & 0xFFFFFF;
++        }
++
++        void moveWord(State *state, DisplayList **dl) {
++            switch ((*dl)->p0(0, 8)) {
++            case 0x02:
++                state->rsp->dkr.billboard = ((*dl)->w1 & 1) != 0;
++                break;
++            case 0x0A:
++                state->rsp->dkr.activeSlot = ((*dl)->w1 >> 6) & 0x3;
++                state->rsp->applyMatrixSlotDKR();
++                break;
++            default:
++                GBI_F3D::moveWord(state, dl);
++                break;
++            }
++        }
++
++        void setup(GBI *gbi) {
++            GBI_F3D::setup(gbi);
++
++            gbi->map[F3DJFG_G_DMA_MTX] = &dmaMatrix;
++            gbi->map[F3DJFG_G_DMA_TEX_OFFSET] = &dmaTexOffset;
++            gbi->map[F3DJFG_G_DMA_VTX] = &dmaVertex;
++            gbi->map[F3DJFG_G_DMA_TRI] = &dmaTriangles;
++            gbi->map[F3DJFG_G_DMA_DL] = &dmaDisplayList;
++            gbi->map[F3DJFG_G_DMA_OFFSETS] = &dmaOffsets;
++            gbi->map[F3D_G_MOVEWORD] = &moveWord;
++        }
++    }
++};
+diff --git a/src/gbi/rt64_gbi_f3djfg.h b/src/gbi/rt64_gbi_f3djfg.h
+new file mode 100644
+index 0000000..02ad3e8
+--- /dev/null
++++ b/src/gbi/rt64_gbi_f3djfg.h
+@@ -0,0 +1,15 @@
++//
++// RT64
++//
++
++#pragma once
++
++#include "rt64_gbi.h"
++
++namespace RT64 {
++    // Rare's microcode for Diddy Kong Racing and Jet Force Gemini: F3D with matrices, vertices and
++    // triangles fetched by DMA, matrix slots, billboarding and counted display lists.
++    namespace GBI_F3DJFG {
++        void setup(GBI *gbi);
++    };
++};
+diff --git a/src/hle/rt64_interpreter.cpp b/src/hle/rt64_interpreter.cpp
+index dccaa87..343a2b9 100644
+--- a/src/hle/rt64_interpreter.cpp
++++ b/src/hle/rt64_interpreter.cpp
+@@ -166,6 +166,7 @@ namespace RT64 {
+         state->checkRDRAM();
+ 
+         // Run the command interpreter.
++        state->rsp->dkr.dlCount = 0;
+         DisplayList *dl = dlStart;
+         uint8_t opCode;
+         GBIFunction func;
+@@ -190,6 +191,11 @@ namespace RT64 {
+                 }
+             }
+ 
++            // Counted display lists (Rare's DMA_DL) return to their caller after a fixed number of commands.
++            if ((dl != nullptr) && (state->rsp->dkr.dlCount > 0) && (--state->rsp->dkr.dlCount == 0)) {
++                dl = state->popReturnAddress();
++            }
++
+             if (dl != nullptr) {
+                 dl++;
+             }
+diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
+index ea0c1ac..2c26ca1 100644
+--- a/src/hle/rt64_rsp.cpp
++++ b/src/hle/rt64_rsp.cpp
+@@ -38,6 +38,15 @@ namespace RT64 {
+     }
+ 
+     void RSP::reset() {
++        dkr.slots.fill(hlslpp::float4x4::identity());
++        dkr.slotAbsolute.fill(false);
++        dkr.activeSlot = 0;
++        dkr.billboard = false;
++        dkr.vertexIndex = 0;
++        dkr.mtxOffset = 0;
++        dkr.vtxOffset = 0;
++        dkr.texOffset = 0;
++        dkr.dlCount = 0;
+         modelMatrixStackSize = 1;
+         projectionMatrixStackSize = 1;
+         viewportStackSize = 1;
+@@ -380,6 +389,104 @@ namespace RT64 {
+         vertexColorPDAddress = fromSegmentedMasked(address);
+     }
+ 
++    // RDRAM holds native-endian 32-bit words, so bytes and halfwords at unaligned addresses are swizzled.
++    static int16_t readDKR16(State *state, uint32_t address) {
++        return *reinterpret_cast<const int16_t *>(state->fromRDRAM(address ^ 2));
++    }
++
++    static uint8_t readDKR8(State *state, uint32_t address) {
++        return *state->fromRDRAM(address ^ 3);
++    }
++
++    // Rare's DMA'd vertex: 10 bytes, s16 x, y, z then u8 r, g, b, a. No texture coordinates: those come
++    // with each triangle.
++    void RSP::setVertexDKR(uint32_t address, uint8_t vtxCount, uint32_t dstIndex) {
++        if ((dstIndex >= RSP_MAX_VERTICES) || ((dstIndex + vtxCount) > RSP_MAX_VERTICES)) {
++            assert(false && "Vertex indices are not valid. DL is possibly corrupted.");
++            return;
++        }
++
++        for (uint32_t i = 0; i < vtxCount; i++) {
++            const uint32_t src = address + i * 10;
++            Vertex &dst = vertices[dstIndex + i];
++            dst.x = readDKR16(state, src + 0);
++            dst.y = readDKR16(state, src + 2);
++            dst.z = readDKR16(state, src + 4);
++            dst.flag = 0;
++            dst.s = 0;
++            dst.t = 0;
++            dst.color.r = readDKR8(state, src + 6);
++            dst.color.g = readDKR8(state, src + 7);
++            dst.color.b = readDKR8(state, src + 8);
++            dst.color.a = readDKR8(state, src + 9);
++        }
++
++        setVertexCommon<true>(dstIndex, dstIndex + vtxCount);
++    }
++
++    // Rare's DMA'd triangle: 16 bytes, u8 flags, u8 v0, v1, v2, then s16 (s, t) for each corner.
++    // Flag 0x40 disables culling. Texture coordinates belong to the triangle, so each corner vertex is
++    // re-processed with them before the triangle is drawn.
++    void RSP::drawTrianglesDKR(uint32_t address, uint32_t triCount) {
++        const uint32_t cullBack = cullBothMask & ~cullFrontMask;
++        for (uint32_t i = 0; i < triCount; i++) {
++            const uint32_t src = address + i * 16;
++            const uint8_t flags = readDKR8(state, src + 0);
++            const uint32_t v[3] = { readDKR8(state, src + 1), readDKR8(state, src + 2), readDKR8(state, src + 3) };
++            if ((v[0] >= RSP_MAX_VERTICES) || (v[1] >= RSP_MAX_VERTICES) || (v[2] >= RSP_MAX_VERTICES)) {
++                assert(false && "Triangle indices are not valid. DL is possibly corrupted.");
++                continue;
++            }
++
++            const uint32_t wantCull = (flags & 0x40) ? 0 : cullBack;
++            if ((geometryModeStack[geometryModeStackSize - 1] & cullBothMask) != wantCull) {
++                modifyGeometryMode(~cullBothMask, wantCull);
++            }
++
++            for (uint32_t k = 0; k < 3; k++) {
++                vertices[v[k]].s = readDKR16(state, src + 4 + k * 4);
++                vertices[v[k]].t = readDKR16(state, src + 6 + k * 4);
++                setVertexCommon<true>(uint8_t(v[k]), uint8_t(v[k] + 1));
++            }
++
++            drawIndexedTri(v[0], v[1], v[2]);
++        }
++    }
++
++    // Slot 0 of Rare's matrix slots is the camera: load it as the view-projection so the renderer still
++    // knows the real projection.
++    void RSP::setViewProjDKR(const hlslpp::float4x4 &viewProj, uint32_t physicalAddress) {
++        hlslpp::float4x4 &viewMatrix = viewMatrixStack[projectionMatrixStackSize - 1];
++        hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
++        viewProjMatrixStack[projectionMatrixStackSize - 1] = viewProj;
++        if (isMatrixViewProj(viewProj)) {
++            matrixDecomposeViewProj(viewProj, viewMatrix, projMatrix);
++        }
++        else {
++            projMatrix = viewProj;
++            viewMatrix = hlslpp::float4x4::identity();
++        }
++
++        projectionMatrixSegmentedAddressStack[projectionMatrixStackSize - 1] = physicalAddress;
++        projectionMatrixPhysicalAddressStack[projectionMatrixStackSize - 1] = physicalAddress;
++        projectionMatrixChanged = true;
++        projectionMatrixInversed = false;
++        modelViewProjChanged = true;
++    }
++
++    void RSP::applyMatrixSlotDKR() {
++        const uint32_t slot = dkr.activeSlot & 3;
++        if (dkr.slotAbsolute[slot]) {
++            modelViewProjMatrix = dkr.slots[slot];
++            modelViewProjInserted = true;
++            modelViewProjChanged = false;
++        }
++        else {
++            modelMatrixStack[modelMatrixStackSize - 1] = dkr.slots[slot];
++            modelViewProjChanged = true;
++        }
++    }
++
+     Projection::Type RSP::getCurrentProjectionType() const {
+         const hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
+         const bool perspProj = (projMatrix[3][3] == 0.0f) && (abs(projMatrix[1][1]) > 1e-6f);
+diff --git a/src/hle/rt64_rsp.h b/src/hle/rt64_rsp.h
+index 1611b7a..84cfd64 100644
+--- a/src/hle/rt64_rsp.h
++++ b/src/hle/rt64_rsp.h
+@@ -217,6 +217,22 @@ namespace RT64 {
+             bool forceBranch;
+         } extended;
+ 
++        // State of Rare's Diddy Kong Racing / Jet Force Gemini microcode (GBIUCode::F3DJFG).
++        struct {
++            // Matrix slots. A relative slot holds a model matrix applied on top of the camera (slot 0,
++            // kept as the view-projection); an absolute slot holds a complete model-view-projection.
++            std::array<hlslpp::float4x4, 4> slots;
++            std::array<bool, 4> slotAbsolute;
++            uint32_t activeSlot = 0;
++            bool billboard = false;
++            uint32_t vertexIndex = 0;
++            uint32_t mtxOffset = 0;
++            uint32_t vtxOffset = 0;
++            uint32_t texOffset = 0;
++            // Commands left in a counted display list (DMA_DL); 0 when not inside one.
++            int dlCount = 0;
++        } dkr;
++
+         RSP(State *state);
+         void reset();
+         Projection::Type getCurrentProjectionType() const;
+@@ -239,6 +255,10 @@ namespace RT64 {
+         void setVertexPD(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
+         void setVertexEXV1(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
+         void setVertexColorPD(uint32_t address);
++        void setVertexDKR(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
++        void drawTrianglesDKR(uint32_t address, uint32_t triCount);
++        void setViewProjDKR(const hlslpp::float4x4 &viewProj, uint32_t physicalAddress);
++        void applyMatrixSlotDKR();
+         template<bool addEmptyVelocity>
+         void setVertexCommon(uint8_t dstIndex, uint8_t dstMax);
+         void modifyVertex(uint16_t dstIndex, uint16_t dstAttribute, uint32_t value);
