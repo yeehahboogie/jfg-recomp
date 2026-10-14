@@ -74,10 +74,10 @@ index 69c35d2..df2ebdd 100644
  
 diff --git a/src/gbi/rt64_gbi_f3djfg.cpp b/src/gbi/rt64_gbi_f3djfg.cpp
 new file mode 100644
-index 0000000..9575ddd
+index 0000000..aa2ebd8
 --- /dev/null
 +++ b/src/gbi/rt64_gbi_f3djfg.cpp
-@@ -0,0 +1,169 @@
+@@ -0,0 +1,303 @@
 +//
 +// RT64
 +//
@@ -102,15 +102,128 @@ index 0000000..9575ddd
 +
 +namespace RT64 {
 +    namespace GBI_F3DJFG {
++        // The microcode fetches its data with byte-exact addresses (it aligns the DMA itself), and JFG's 10-byte
++        // vertices are rarely 8-byte aligned: don't apply the RSP DMA alignment mask like fromSegmentedMasked.
++        static uint32_t exactAddress(RSP *rsp, uint32_t segAddress) {
++            return rsp->fromSegmented(segAddress) & 0x00FFFFFF;
++        }
++
 +        // JFG_DEBUG_GBI=<seconds> logs 400 decoded commands, starting that long after the first one (diagnosis aid).
 +        static const double debugDelay = std::getenv("JFG_DEBUG_GBI") ? std::atof(std::getenv("JFG_DEBUG_GBI")) : -1.0;
-+        static int debugBudgetStore = 400;
++        static int debugBudgetStore = std::getenv("JFG_DEBUG_GBI_LINES") ? std::atoi(std::getenv("JFG_DEBUG_GBI_LINES")) : 400;
++        static const auto debugStart = std::chrono::steady_clock::now();
++        static bool debugSkip() {
++            return std::chrono::duration<double>(std::chrono::steady_clock::now() - debugStart).count() < debugDelay;
++        }
++
 +        static bool debugNext() {
 +            if (debugDelay < 0.0 || debugBudgetStore <= 0) return false;
-+            static const auto start = std::chrono::steady_clock::now();
-+            if (std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() < debugDelay) return false;
++            if (debugSkip()) return false;
 +            debugBudgetStore--;
 +            return true;
++        }
++
++        // JFG_DEBUG_XFORM=1: a shadow of GLideN64's DKR matrix-slot model (slot k = mtx, or mtx x slot 0 as it is
++        // when loaded; vertices use the active slot), compared against RT64's transformed vertex positions.
++        static const bool xformDebug = std::getenv("JFG_DEBUG_XFORM") != nullptr;
++        static hlslpp::float4x4 shadowSlots[4] = { hlslpp::float4x4::identity(), hlslpp::float4x4::identity(), hlslpp::float4x4::identity(), hlslpp::float4x4::identity() };
++        static uint32_t shadowActive = 0;
++        static uint64_t xformChecked = 0, xformBad = 0;
++        static int xformExamples = 0;
++
++        // JFG_DEBUG_TRIDUMP=<file>: with JFG_DEBUG_XFORM and JFG_DEBUG_GBI=<seconds>, write the reference clip-space
++        // triangles (and vertex colours) drawn after that time, 4000 of them, for offline rendering.
++        static hlslpp::float4 shadowClip[64];
++        static uint32_t shadowColor[64];
++        static FILE *triDump = nullptr;
++        static int triDumpLeft = 4000;
++
++        static void shadowDumpTriangles(State *state, uint32_t address, uint32_t count) {
++            if (!xformDebug || triDumpLeft <= 0 || debugSkip() || !std::getenv("JFG_DEBUG_TRIDUMP")) return;
++            if (triDump == nullptr) triDump = fopen(std::getenv("JFG_DEBUG_TRIDUMP"), "w");
++            if (triDump == nullptr) return;
++            const uint8_t *rdram = state->fromRDRAM(0);
++            for (uint32_t i = 0; i < count && triDumpLeft > 0; i++, triDumpLeft--) {
++                const uint32_t src = address + i * 16;
++                for (uint32_t k = 1; k <= 3; k++) {
++                    const uint32_t v = rdram[(src + k) ^ 3] & 63;
++                    const hlslpp::float4 &c = shadowClip[v];
++                    fprintf(triDump, "%f %f %f %f %08X ", float(c.x), float(c.y), float(c.z), float(c.w), shadowColor[v]);
++                }
++                fprintf(triDump, "\n");
++            }
++            if (triDumpLeft <= 0) { fclose(triDump); triDump = nullptr; fprintf(stderr, "[xform] triangle dump written\n"); }
++        }
++
++        static void shadowCheckVertices(State *state, uint32_t address, uint32_t count, uint32_t dstIndex) {
++            RSP *rsp = state->rsp.get();
++            auto &posTransformed = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor].drawData.posTransformed;
++            const uint8_t *rdram = state->fromRDRAM(0);
++            for (uint32_t i = 0; i < count; i++) {
++                const uint32_t src = address + i * 10;
++                auto rd16 = [&](uint32_t a) { return int16_t((rdram[a ^ 3] << 8) | rdram[(a + 1) ^ 3]); };
++                const hlslpp::float4 pos(float(rd16(src)), float(rd16(src + 2)), float(rd16(src + 4)), 1.0f);
++                const hlslpp::float4 ref = hlslpp::mul(pos, shadowSlots[shadowActive]);
++                const hlslpp::float4 got = posTransformed[rsp->indices[dstIndex + i]];
++                shadowClip[(dstIndex + i) & 63] = ref;
++                shadowColor[(dstIndex + i) & 63] = (uint32_t(rdram[(src + 6) ^ 3]) << 24) | (uint32_t(rdram[(src + 7) ^ 3]) << 16) | (uint32_t(rdram[(src + 8) ^ 3]) << 8) | rdram[(src + 9) ^ 3];
++                const float err = hlslpp::length(got - ref).x / std::max(1.0f, float(hlslpp::length(ref).x));
++                xformChecked++;
++                if (err > 1e-3f) {
++                    xformBad++;
++                    if (xformExamples < 12) {
++                        xformExamples++;
++                        fprintf(stderr, "[xform] slot %u vertex %u pos=(%.0f %.0f %.0f) ref=(%.2f %.2f %.2f %.2f) rt64=(%.2f %.2f %.2f %.2f)\n", shadowActive, dstIndex + i,
++                            float(pos.x), float(pos.y), float(pos.z), float(ref.x), float(ref.y), float(ref.z), float(ref.w), float(got.x), float(got.y), float(got.z), float(got.w));
++                    }
++                }
++            }
++            if ((xformChecked % 20000) < count) {
++                fprintf(stderr, "[xform] %llu vertices checked, %llu differ from the reference\n", (unsigned long long)xformChecked, (unsigned long long)xformBad);
++            }
++        }
++
++        static GBIFunction debugOriginal[UCODE_MAP_SIZE] = {};
++
++        // Logs each command's raw words, then runs its real handler.
++        static void debugCommand(State *state, DisplayList **dl) {
++            const uint32_t opcode = (*dl)->w0 >> 24;
++            // JFG_DEBUG_RDRAM=<file>: once the logging delay has passed, write RDRAM (8 MB) in the console's byte
++            // order, for comparison with an emulator's memory.
++            static bool rdramDumped = false;
++            if (!rdramDumped && std::getenv("JFG_DEBUG_RDRAM") && !debugSkip()) {
++                rdramDumped = true;
++                if (FILE *f = fopen(std::getenv("JFG_DEBUG_RDRAM"), "wb")) {
++                    const uint8_t *rdram = state->fromRDRAM(0);
++                    for (uint32_t a = 0; a < 0x800000; a++) fputc(rdram[a ^ 3], f);
++                    fclose(f);
++                    fprintf(stderr, "[gbi] RDRAM dumped while executing command at %p (w0=%08X)\n", (void *)*dl, (*dl)->w0);
++                }
++            }
++            // JFG_DEBUG_TEXDUMP=<dir>: write the source bytes of the first texture loads (LOADBLOCK) seen while logging.
++            static uint32_t lastImage = 0, lastImageW0 = 0;
++            static int dumped = 0;
++            if (opcode == 0xFD) {
++                lastImage = (*dl)->w1;
++                lastImageW0 = (*dl)->w0;
++            }
++            else if ((opcode == 0xF3) && (dumped < 40) && std::getenv("JFG_DEBUG_TEXDUMP") && (debugBudgetStore > 0) && (debugSkip() == false)) {
++                const uint32_t texels = (((*dl)->w1 >> 12) & 0xFFF) + 1;
++                const uint32_t siz = (lastImageW0 >> 19) & 3;
++                const uint32_t bytes = (siz == 3) ? texels * 4 : (siz == 2) ? texels * 2 : (siz == 1) ? texels : texels / 2;
++                const uint32_t address = state->rsp->fromSegmentedMasked(lastImage);
++                char path[512];
++                snprintf(path, sizeof(path), "%s/%03d_%08X_fmt%u_siz%u.bin", std::getenv("JFG_DEBUG_TEXDUMP"), dumped++, address, (lastImageW0 >> 21) & 7, siz);
++                if (FILE *f = fopen(path, "wb")) {
++                    const uint8_t *rdram = state->fromRDRAM(0);
++                    for (uint32_t b = 0; b < bytes; b++) fputc(rdram[(address + b) ^ 3], f);
++                    fclose(f);
++                }
++            }
++            if (debugNext()) {
++                fprintf(stderr, "[gbi] cmd %02X w0=%08X w1=%08X\n", opcode, (*dl)->w0, (*dl)->w1);
++            }
++            debugOriginal[opcode](state, dl);
 +        }
 +
 +        // A full fixed-point matrix (64 bytes) is loaded into one of four slots. The command has two forms:
@@ -133,7 +246,7 @@ index 0000000..9575ddd
 +            }
 +
 +            RSP *rsp = state->rsp.get();
-+            const uint32_t address = rsp->dkr.mtxOffset + rsp->fromSegmentedMasked((*dl)->w1);
++            const uint32_t address = rsp->dkr.mtxOffset + exactAddress(rsp, (*dl)->w1);
 +            const hlslpp::float4x4 matrix = reinterpret_cast<const FixedMatrix *>(state->fromRDRAM(address))->toMatrix4x4();
 +            const uint32_t slot = index & 3;
 +            if (debugNext()) {
@@ -156,10 +269,14 @@ index 0000000..9575ddd
 +
 +            rsp->dkr.activeSlot = slot;
 +            rsp->applyMatrixSlotDKR();
++            if (xformDebug) {
++                shadowSlots[slot] = multiply ? hlslpp::mul(matrix, shadowSlots[0]) : matrix;
++                shadowActive = slot;
++            }
 +        }
 +
 +        void dmaTexOffset(State *state, DisplayList **dl) {
-+            state->rsp->dkr.texOffset = state->rsp->fromSegmentedMasked((*dl)->w1);
++            state->rsp->dkr.texOffset = exactAddress(state->rsp.get(), (*dl)->w1);
 +        }
 +
 +        // Jet Force Gemini's vertex count is used as is (Diddy Kong Racing's adds one). With billboarding on,
@@ -178,11 +295,14 @@ index 0000000..9575ddd
 +
 +            const uint32_t count = (w0 >> 19) & 0x1F;
 +            const uint32_t dstIndex = rsp->dkr.vertexIndex + ((w0 >> 9) & 0x1F);
-+            const uint32_t address = rsp->dkr.vtxOffset + rsp->fromSegmentedMasked((*dl)->w1);
++            const uint32_t address = rsp->dkr.vtxOffset + exactAddress(rsp, (*dl)->w1);
 +            if (debugNext()) {
 +                fprintf(stderr, "[gbi] DMA_VTX w0=%08X count=%u dst=%u addr=%08X\n", w0, count, dstIndex, address);
 +            }
 +            rsp->setVertexDKR(address, uint8_t(count), dstIndex);
++            if (xformDebug) {
++                shadowCheckVertices(state, address, count, dstIndex);
++            }
 +            rsp->dkr.vertexIndex += count;
 +        }
 +
@@ -195,9 +315,13 @@ index 0000000..9575ddd
 +            }
 +
 +            if (debugNext()) {
-+                fprintf(stderr, "[gbi] DMA_TRI w0=%08X count=%u addr=%08X\n", w0, ((w0 >> 20) & 0xF) + 1, rsp->fromSegmentedMasked((*dl)->w1));
++                const uint32_t triAddress = exactAddress(rsp, (*dl)->w1);
++                const uint32_t *raw = reinterpret_cast<const uint32_t *>(state->fromRDRAM(triAddress));
++                fprintf(stderr, "[gbi] DMA_TRI w0=%08X count=%u addr=%08X texture on=%u sc=%04X tc=%04X tile=%u first=%08X %08X %08X %08X\n", w0, ((w0 >> 20) & 0xF) + 1, triAddress,
++                    rsp->textureState.on, rsp->textureState.sc, rsp->textureState.tc, rsp->textureState.tile, raw[0], raw[1], raw[2], raw[3]);
 +            }
-+            rsp->drawTrianglesDKR(rsp->fromSegmentedMasked((*dl)->w1), ((w0 >> 20) & 0xF) + 1);
++            shadowDumpTriangles(state, exactAddress(rsp, (*dl)->w1), ((w0 >> 20) & 0xF) + 1);
++            rsp->drawTrianglesDKR(exactAddress(rsp, (*dl)->w1), ((w0 >> 20) & 0xF) + 1);
 +            rsp->dkr.vertexIndex = 0;
 +        }
 +
@@ -207,7 +331,7 @@ index 0000000..9575ddd
 +            const uint32_t count = ((*dl)->w0 >> 16) & 0xFF;
 +            state->pushReturnAddress(*dl);
 +            state->rsp->dkr.dlCount = int(count) + 1;
-+            const uint32_t rdramAddress = state->rsp->fromSegmentedMasked((*dl)->w1);
++            const uint32_t rdramAddress = exactAddress(state->rsp.get(), (*dl)->w1);
 +            *dl = reinterpret_cast<DisplayList *>(state->fromRDRAM(rdramAddress)) - 1;
 +        }
 +
@@ -227,6 +351,7 @@ index 0000000..9575ddd
 +            case 0x0A:
 +                state->rsp->dkr.activeSlot = ((*dl)->w1 >> 6) & 0x3;
 +                state->rsp->applyMatrixSlotDKR();
++                shadowActive = state->rsp->dkr.activeSlot;
 +                break;
 +            default:
 +                GBI_F3D::moveWord(state, dl);
@@ -244,6 +369,15 @@ index 0000000..9575ddd
 +            gbi->map[F3DJFG_G_DMA_DL] = &dmaDisplayList;
 +            gbi->map[F3DJFG_G_DMA_OFFSETS] = &dmaOffsets;
 +            gbi->map[F3D_G_MOVEWORD] = &moveWord;
++
++            if (debugDelay >= 0.0) {
++                for (uint32_t i = 0; i < UCODE_MAP_SIZE; i++) {
++                    if (gbi->map[i] != nullptr) {
++                        debugOriginal[i] = gbi->map[i];
++                        gbi->map[i] = &debugCommand;
++                    }
++                }
++            }
 +        }
 +    }
 +};
@@ -293,7 +427,7 @@ index dccaa87..343a2b9 100644
                  dl++;
              }
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..2c26ca1 100644
+index ea0c1ac..79dd896 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -38,6 +38,15 @@ namespace RT64 {
@@ -312,7 +446,7 @@ index ea0c1ac..2c26ca1 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +389,104 @@ namespace RT64 {
+@@ -380,6 +389,107 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -370,10 +504,13 @@ index ea0c1ac..2c26ca1 100644
 +                modifyGeometryMode(~cullBothMask, wantCull);
 +            }
 +
++            // Each triangle carries its own texture coordinates (10.5 fixed point, unscaled). Set them without
++            // re-transforming the vertex: skinned meshes load vertices under different matrix slots, so the
++            // matrix active now isn't necessarily the one each vertex was loaded with. Vertices already used
++            // by an earlier triangle are copied first.
 +            for (uint32_t k = 0; k < 3; k++) {
-+                vertices[v[k]].s = readDKR16(state, src + 4 + k * 4);
-+                vertices[v[k]].t = readDKR16(state, src + 6 + k * 4);
-+                setVertexCommon<true>(uint8_t(v[k]), uint8_t(v[k] + 1));
++                const uint32_t st = (uint32_t(uint16_t(readDKR16(state, src + 4 + k * 4))) << 16) | uint16_t(readDKR16(state, src + 6 + k * 4));
++                modifyVertex(uint16_t(v[k]), G_MWO_POINT_ST, st);
 +            }
 +
 +            drawIndexedTri(v[0], v[1], v[2]);
