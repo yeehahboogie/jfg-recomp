@@ -13,7 +13,11 @@ void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx);
 void jfg_controls_force_normal_keymap(uint8_t* rdram, recomp_context* ctx);
 /* Camera dispatcher (0x8002B418) entry, a1 = pd. */
 void jfg_controls_camera_begin(uint8_t* rdram, recomp_context* ctx);
-/* Camera dispatcher before its epilogue (every path reaches 0x8002B954). */
+/* Follow camera (0x8002CF6C(obj, pd, ticks)) entry: undo last frame's pitch orbit. */
+void jfg_free_camera_entry(uint8_t* rdram, recomp_context* ctx);
+/* Follow camera at 0x8002DFE8, where both orbit-heading paths join (s0 = pd): the free camera's yaw. */
+void jfg_free_camera_heading(uint8_t* rdram, recomp_context* ctx);
+/* Camera dispatcher before its epilogue (every path reaches 0x8002B954): the free camera's pitch, debug log. */
 void jfg_controls_after_camera(uint8_t* rdram, recomp_context* ctx);
 #ifdef __cplusplus
 }

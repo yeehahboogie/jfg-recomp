@@ -509,13 +509,13 @@ void free_camera_follow(FreeCameraState& s, int16_t heading) { s.yaw = heading; 
   - `jfg_free_camera_heading` (before `0x8002DFE8`: own or read back `pd+0x104`)
   - `jfg_free_camera_pitch` (right after the follow camera returns in the dispatcher: apply the pitch orbit)
 
-- [ ] **Step 1: Locate the call sites.**
+- [x] **Step 1: Locate the call sites.**
 
 Run `grep -n "func_8002CF6C(rdram, ctx);" generated/funcs/*.c`. All hits should be inside `func_8002B418`. For each, take the vram of the instruction after the call's delay slot (from the `// 0x...` comments). Those are the `before_vram`s for `jfg_free_camera_pitch`.
 
 Confirm the branch target at `0x8002DFE8` gets the hook text after its label: after Step 3's recompile, `grep -n -A2 "L_8002DFE8:" generated/funcs/*.c` must show the hook call on the next lines.
 
-- [ ] **Step 2: Hooks in `recomp/jfg.toml.in`:**
+- [x] **Step 2: Hooks in `recomp/jfg.toml.in`:**
 ```toml
 [[patches.hook]]
 func = "func_8002CF6C"          # follow camera entry: restore the unpitched camera from last frame
@@ -528,7 +528,7 @@ text = "jfg_free_camera_heading(rdram, ctx);"
 ```
 Add one `jfg_free_camera_pitch` hook per call site from Step 1, each with `func = "func_8002B418"`.
 
-- [ ] **Step 3: Implement the hooks** in `hooks.cpp`:
+- [x] **Step 3: Implement the hooks** in `hooks.cpp`:
   - `jfg_free_camera_entry`:
     - If `g_frame.active`, set `g_frame.camera_kind = 1`.
     - If last frame applied a pitch orbit and `cam0()`'s position still equals the position we wrote, restore the saved unpitched position and pitch.
@@ -552,22 +552,22 @@ Add one `jfg_free_camera_pitch` hook per call site from Step 1, each with `func 
     - Save the originals and what was written, for `jfg_free_camera_entry`.
   - `jfg_controls_after_camera`: if `g_frame.active` and `camera_kind != 1`, call `free_camera_resync(s, heading_from_cam(cam0 yaw), drift_delay)`, where `heading_from_cam` is the relation recorded in Findings (b). Reset `camera_kind = 0` for the next frame.
 
-- [ ] **Step 4: Build.** Run `scripts/recompile.sh && cmake --build ...`. Then check the `L_8002DFE8:` placement (Step 1) and that `jfg_free_camera_pitch` appears right after each `func_8002CF6C` call.
+- [x] **Step 4: Build.** Run `scripts/recompile.sh && cmake --build ...`. Then check the `L_8002DFE8:` placement (Step 1) and that `jfg_free_camera_pitch` appears right after each `func_8002CF6C` call.
 
-- [ ] **Step 5: Debug log checks** (Goldwood script plus inputs, `JFG_DEBUG_CONTROLS=1`):
+- [x] **Step 5: Debug log checks** (Goldwood script plus inputs, `JFG_DEBUG_CONTROLS=1`):
   - (a) `300+2 - 0 0 1 0` (stick right): `orbit` changes steadily while `facing` doesn't (Juno is standing).
   - (b) `303+3 - 0 1` (run forward, no look input, 1.5 s past the last look): `orbit` approaches `0x8000 − facing` (drift-back) from about 1.5 s after the look input ended.
   - (c) `307+1 - 0 0 0 -1` (stick up, look up): the debug line `pitch` goes positive, and the camera y in the log goes down.
 
 Record pass or fail for each with the log line numbers in Findings.
 
-- [ ] **Step 6: Visual check.**
+- [x] **Step 6: Visual check.**
   - `scripts/screenshots.sh build/diag/freecam 299 301 302 304 306 308` with the same script. The camera has orbited around Juno at 301–302 s and swung back behind her by 306 s.
   - Then run a cutscene transition: start a new game; the intro ends in the teleporter, and gameplay follows. Check that the first gameplay frames show no snap, against frames 1 s apart.
 
 If the visible yaw or pitch direction is opposite to the stick, flip the constant in `free_camera_step` and update its test expectations in the same commit.
 
-- [ ] **Step 7: Commit and push.**
+- [x] **Step 7: Commit and push.**
 
 ---
 
@@ -787,4 +787,12 @@ Recorded during execution: runtime-confirmed facts with log references.
   - `disablejoy` is the word at `0x800F6DBC`, tested first by `controlReadJoypad`.
   - The camera dispatcher `0x8002B418(obj, pd, ticks)` reuses `s0` at `0x8002B884`, so `pd` is captured at its entry. It also runs for a non-player `pd` (`801DC790`) during cutscenes.
   - Juno is controllable and standing from about 287 s to 296 s in the Goldwood script, a safe window for scripted test inputs. The scripted run then reaches Magnus's dialogue trigger at about 300.3 s.
-- (e) Free camera checks (Task 6 Step 5 a–c):
+- (e) Free camera checks (Task 6 Step 5, `build/diag/fc/run.log`):
+  - (a) PASS: right stick for 0.5 s while standing moves the orbit 0 → 0x3FFC (90°), and `facing` stays 0x8000 (f=30–42).
+  - (b) PASS: running left after the look, the free camera holds the orbit until 1.5 s after the look ended, then the game swings it toward behind Juno (0x3FFC → 0xF757, f=87–162) and stops when she stops.
+  - (c) PASS: stick up for 1 s takes the pitch to 1.0, and the camera pitch goes from 0x21AC (47° down) to 0xF573 (−15°, looking up). Mouse down then lowers it to 0x2B03 (60° down). After the delay the pitch recentres while the orbit stays put.
+  - `ticks` is 2.0 every frame (30 fps), so dt = 1/30.
+  - The landing cutscene → gameplay transition resyncs to the game's heading on the first frame: no snap.
+  - Tuning notes for the playtest:
+    - The game smooths the camera position toward the orbit in about 10 frames (~⅓ s), so mouse look has that lag.
+    - The game aims slightly ahead of Juno's facing, so after looking sideways she sits off-centre (camera yaw ≈ orbit − 0xF00 at 90° to her facing).

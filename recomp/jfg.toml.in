@@ -113,3 +113,12 @@ text = "jfg_controls_camera_begin(rdram, ctx);"
 func = "func_8002B418"          # camera dispatcher, before its epilogue (every path reaches 0x8002B954)
 before_vram = 0x8002B954
 text = "jfg_controls_after_camera(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8002CF6C"          # follow camera(obj, pd, ticks) entry: undo last frame's free-camera pitch orbit
+text = "jfg_free_camera_entry(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8002CF6C"          # both orbit-heading paths join here (research §4.7): free-camera yaw
+before_vram = 0x8002DFE8
+text = "jfg_free_camera_heading(rdram, ctx);"

@@ -37,4 +37,24 @@ void free_camera_resync(FreeCameraState& s, int16_t heading, float drift_delay) 
 }
 
 void free_camera_follow(FreeCameraState& s, int16_t heading) { s.yaw = heading; }
+
+int16_t orbit_heading(Vec3 cam, Vec3 player) {
+    const double a = std::atan2(-(double)(player.x - cam.x), (double)(player.z - cam.z));
+    return (int16_t)(uint16_t)(int32_t)std::lround(a * 32768.0 / 3.14159265358979323846);
+}
+
+PitchOrbit pitch_orbit(Vec3 cam, Vec3 head, float floor_y, float pitch) {
+    const float vx = cam.x - head.x, vy = cam.y - head.y, vz = cam.z - head.z;
+    const float r = std::hypot(vx, vz);
+    if (pitch == 0.f || r < 1e-4f) {
+        return {cam, 0.f};
+    }
+    const float dist = std::hypot(r, vy);
+    const float e = std::atan2(vy, r);
+    const float limit = pitch > 0.f ? pitch_orbit_min_elevation : pitch_orbit_max_elevation;
+    const float e2 = e + std::min(std::fabs(pitch), 1.f) * (limit - e);
+    const float r2 = std::cos(e2) * dist;
+    Vec3 pos{head.x + vx / r * r2, std::max(head.y + std::sin(e2) * dist, floor_y), head.z + vz / r * r2};
+    return {pos, std::atan2(pos.y - head.y, r2) - e};
+}
 }

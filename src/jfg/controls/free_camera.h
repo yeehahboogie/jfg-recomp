@@ -22,6 +22,23 @@ struct LookParams {
 bool free_camera_step(FreeCameraState& s, const ModernInput& in, const LookParams& p, float drift_delay, float dt);
 // After another camera ran: adopt the given heading, level the pitch, and mark idle past the delay.
 void free_camera_resync(FreeCameraState& s, int16_t heading, float drift_delay);
+struct Vec3 { float x, y, z; };
+struct PitchOrbit {
+    Vec3 pos;              // new camera position
+    float delta_elevation; // radians the camera moved up (> 0) or down around the head; add to the camera pitch
+};
+// Camera elevation limits around the player's head (radians): slightly below the head when looking up, nearly
+// overhead when looking down.
+constexpr float pitch_orbit_min_elevation = -0.2617994f; // -15 degrees
+constexpr float pitch_orbit_max_elevation = 1.3089969f;  // 75 degrees
+// Applies the free camera's pitch to a camera the game placed at `cam` looking at `head`: moves it on the sphere
+// around the head, keeping its distance and horizontal direction. pitch 1 (look up) goes to the lowest elevation,
+// -1 (look down) to the highest, 0 leaves it alone. The result never goes below floor_y.
+PitchOrbit pitch_orbit(Vec3 cam, Vec3 head, float floor_y, float pitch);
+
+// The orbit heading (pd+0x104 convention) of a camera at `cam` looking at a player at `player`.
+int16_t orbit_heading(Vec3 cam, Vec3 player);
+
 // While drifting: adopt the game's heading so the next look input continues from the camera's actual direction.
 void free_camera_follow(FreeCameraState& s, int16_t heading);
 }

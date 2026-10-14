@@ -94,5 +94,45 @@ int main() {
         assert(free_camera_step(s, mouse(1, 0), params, 1.5f, dt));
         assert(s.idle == 0.f);
     }
+    {   // pitch_orbit: pitch 0 leaves the camera where the game put it
+        const Vec3 cam{0, 170, -190}, head{0, 20, 0};
+        PitchOrbit o = pitch_orbit(cam, head, -1000.f, 0.f);
+        assert(o.pos.x == cam.x && o.pos.y == cam.y && o.pos.z == cam.z && o.delta_elevation == 0.f);
+    }
+    {   // pitch_orbit: look up moves the camera down to the lowest elevation, keeping distance and direction
+        const Vec3 cam{0, 170, -190}, head{0, 20, 0};
+        const float dist = std::hypot(150.f, 190.f), e = std::atan2(150.f, 190.f);
+        PitchOrbit o = pitch_orbit(cam, head, -1000.f, 1.f);
+        const float dy = o.pos.y - head.y, dz = o.pos.z - head.z;
+        assert(std::abs(std::hypot(dy, dz) - dist) < 1e-3f && std::abs(o.pos.x) < 1e-4f && dz < 0.f);
+        assert(std::abs(std::atan2(dy, -dz) - pitch_orbit_min_elevation) < 1e-4f);
+        assert(std::abs(o.delta_elevation - (pitch_orbit_min_elevation - e)) < 1e-4f);
+    }
+    {   // pitch_orbit: look down moves the camera up to the highest elevation
+        const Vec3 cam{100, 120, 0}, head{0, 20, 0};
+        PitchOrbit o = pitch_orbit(cam, head, -1000.f, -1.f);
+        const float dy = o.pos.y - head.y, dx = o.pos.x - head.x;
+        assert(std::abs(std::atan2(dy, dx) - pitch_orbit_max_elevation) < 1e-4f && std::abs(o.pos.z) < 1e-4f);
+        assert(o.delta_elevation > 0.f);
+    }
+    {   // pitch_orbit: half-way look up is half-way between the game's elevation and the lowest
+        const Vec3 cam{0, 120, -100}, head{0, 20, 0};
+        PitchOrbit o = pitch_orbit(cam, head, -1000.f, 0.5f);
+        const float e = std::atan2(100.f, 100.f);
+        assert(std::abs(o.delta_elevation - 0.5f * (pitch_orbit_min_elevation - e)) < 1e-4f);
+    }
+    {   // pitch_orbit: never below the floor height (Juno's feet)
+        const Vec3 cam{0, 170, -190}, head{0, 20, 0};
+        PitchOrbit o = pitch_orbit(cam, head, 15.f, 1.f);
+        assert(o.pos.y == 15.f);
+    }
+    {   // orbit_heading: the game's pd+0x104 convention, atan2(-dx, dz) of player - camera (plan Findings b)
+        assert(orbit_heading(Vec3{0, 0, -190}, Vec3{0, 0, 0}) == 0);
+        assert(orbit_heading(Vec3{100, 0, 0}, Vec3{0, 0, 0}) == 0x4000);
+        assert(orbit_heading(Vec3{0, 0, 190}, Vec3{0, 0, 0}) == (int16_t)0x8000);
+        // Logged in Goldwood (Task 1 run, f=632): camera (-65.7, 54.3, 1067.0), Juno (19.0, 3.7, 1151.8), orbit 0xE003.
+        const int16_t h = orbit_heading(Vec3{-65.7f, 54.3f, 1067.0f}, Vec3{19.0f, 3.7f, 1151.8f});
+        assert(std::abs((int)(uint16_t)h - 0xE003) < 0x10);
+    }
     std::puts("free_camera_test: OK");
 }
