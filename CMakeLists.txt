@@ -140,6 +140,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/libultra_stubs.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/cic6105.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/cic_hook.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/fpu_mode.cpp
 
     ${CMAKE_SOURCE_DIR}/lib/RmlUi/Backends/RmlUi_Platform_SDL.cpp
 )

@@ -74,15 +74,19 @@ index 69c35d2..df2ebdd 100644
  
 diff --git a/src/gbi/rt64_gbi_f3djfg.cpp b/src/gbi/rt64_gbi_f3djfg.cpp
 new file mode 100644
-index 0000000..4a7ec96
+index 0000000..9575ddd
 --- /dev/null
 +++ b/src/gbi/rt64_gbi_f3djfg.cpp
-@@ -0,0 +1,137 @@
+@@ -0,0 +1,169 @@
 +//
 +// RT64
 +//
 +
 +#include "rt64_gbi_f3djfg.h"
++
++#include <chrono>
++#include <cstdio>
++#include <cstdlib>
 +
 +#include "hle/rt64_interpreter.h"
 +
@@ -98,6 +102,17 @@ index 0000000..4a7ec96
 +
 +namespace RT64 {
 +    namespace GBI_F3DJFG {
++        // JFG_DEBUG_GBI=<seconds> logs 400 decoded commands, starting that long after the first one (diagnosis aid).
++        static const double debugDelay = std::getenv("JFG_DEBUG_GBI") ? std::atof(std::getenv("JFG_DEBUG_GBI")) : -1.0;
++        static int debugBudgetStore = 400;
++        static bool debugNext() {
++            if (debugDelay < 0.0 || debugBudgetStore <= 0) return false;
++            static const auto start = std::chrono::steady_clock::now();
++            if (std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count() < debugDelay) return false;
++            debugBudgetStore--;
++            return true;
++        }
++
 +        // A full fixed-point matrix (64 bytes) is loaded into one of four slots. The command has two forms:
 +        // with a zero slot field (Diddy Kong Racing style) the slot comes from bits 22-23 and the matrix is
 +        // absolute; otherwise (Jet Force Gemini style) bit 23 asks for it to be applied on top of slot 0.
@@ -121,6 +136,14 @@ index 0000000..4a7ec96
 +            const uint32_t address = rsp->dkr.mtxOffset + rsp->fromSegmentedMasked((*dl)->w1);
 +            const hlslpp::float4x4 matrix = reinterpret_cast<const FixedMatrix *>(state->fromRDRAM(address))->toMatrix4x4();
 +            const uint32_t slot = index & 3;
++            if (debugNext()) {
++                fprintf(stderr, "[gbi] DMA_MTX w0=%08X index=%u multiply=%d addr=%08X", w0, index, multiply, address);
++                for (int r = 0; r < 4; r++) fprintf(stderr, " [%.3f %.3f %.3f %.3f]", matrix[r][0], matrix[r][1], matrix[r][2], matrix[r][3]);
++                fprintf(stderr, " w1=%08X mtxOffset=%08X raw=", (*dl)->w1, rsp->dkr.mtxOffset);
++                const uint32_t *raw = reinterpret_cast<const uint32_t *>(state->fromRDRAM(address));
++                for (int k = 0; k < 16; k++) fprintf(stderr, "%08X ", raw[k]);
++                fprintf(stderr, "\n");
++            }
 +            if ((slot == 0) && !multiply) {
 +                rsp->setViewProjDKR(matrix, address);
 +                rsp->dkr.slots[0] = hlslpp::float4x4::identity();
@@ -156,6 +179,9 @@ index 0000000..4a7ec96
 +            const uint32_t count = (w0 >> 19) & 0x1F;
 +            const uint32_t dstIndex = rsp->dkr.vertexIndex + ((w0 >> 9) & 0x1F);
 +            const uint32_t address = rsp->dkr.vtxOffset + rsp->fromSegmentedMasked((*dl)->w1);
++            if (debugNext()) {
++                fprintf(stderr, "[gbi] DMA_VTX w0=%08X count=%u dst=%u addr=%08X\n", w0, count, dstIndex, address);
++            }
 +            rsp->setVertexDKR(address, uint8_t(count), dstIndex);
 +            rsp->dkr.vertexIndex += count;
 +        }
@@ -168,6 +194,9 @@ index 0000000..4a7ec96
 +                rsp->setTexture(rsp->textureState.tile, rsp->textureState.levels, textureOn, rsp->textureState.sc, rsp->textureState.tc);
 +            }
 +
++            if (debugNext()) {
++                fprintf(stderr, "[gbi] DMA_TRI w0=%08X count=%u addr=%08X\n", w0, ((w0 >> 20) & 0xF) + 1, rsp->fromSegmentedMasked((*dl)->w1));
++            }
 +            rsp->drawTrianglesDKR(rsp->fromSegmentedMasked((*dl)->w1), ((w0 >> 20) & 0xF) + 1);
 +            rsp->dkr.vertexIndex = 0;
 +        }
@@ -183,6 +212,9 @@ index 0000000..4a7ec96
 +        }
 +
 +        void dmaOffsets(State *state, DisplayList **dl) {
++            if (debugNext()) {
++                fprintf(stderr, "[gbi] DMA_OFFSETS w0=%08X w1=%08X\n", (*dl)->w0, (*dl)->w1);
++            }
 +            state->rsp->dkr.mtxOffset = (*dl)->w0 & 0xFFFFFF;
 +            state->rsp->dkr.vtxOffset = (*dl)->w1 & 0xFFFFFF;
 +        }

@@ -342,6 +342,8 @@ RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     }
 }
 
+#include "jfg_fpu_mode.h"
+
 extern "C" void recomp_entrypoint(uint8_t * rdram, recomp_context * ctx);
 gpr get_entrypoint_address();
 
@@ -357,6 +359,8 @@ std::vector<recomp::GameEntry> supported_games = {
         .has_compressed_code = false,
         .entrypoint_address = get_entrypoint_address(),
         .entrypoint = recomp_entrypoint,
+        .thread_create_callback = jfg_set_fpu_mode,  // FR=1, as the console's boot code leaves it (src/jfg/fpu_mode.cpp)
+        .on_init_callback = jfg_set_fpu_mode,
     },
 };
 

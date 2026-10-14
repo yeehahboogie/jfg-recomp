@@ -1,0 +1,17 @@
+diff --git a/ultramodern/src/events.cpp b/ultramodern/src/events.cpp
+index 46f63f1..cdc9d9f 100644
+--- a/ultramodern/src/events.cpp
++++ b/ultramodern/src/events.cpp
+@@ -208,8 +208,10 @@ void vi_thread_func() {
+         }
+         total_vis = new_total_vis;
+ 
+-        // If the game hasn't started yet, set a dummy VI mode and origin.
+-        if (!ultramodern::is_game_started()) {
++        // If the game hasn't started yet, or hasn't set a VI mode yet, set a dummy VI mode and origin.
++        // (A game that starts before this thread's first tick and sets its mode late would otherwise
++        // leave the next VI state without a mode.)
++        if (!ultramodern::is_game_started() || events_context.vi.get_next_state()->mode == nullptr) {
+             static bool odd = false;
+             set_dummy_vi(odd);
+             odd = !odd;
