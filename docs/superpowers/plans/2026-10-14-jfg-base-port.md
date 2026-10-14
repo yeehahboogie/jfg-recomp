@@ -318,7 +318,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 Known values (from the spikes; the code must *derive* them, the tests assert them):
 `text_start 0x80000450`, `code_end 0x8009DA10` (first microcode byte), `data_start 0x800A0660`, `bss_start 0x800B0B50`, `bss_end 0x801059A0`, `entry_target 0x8003F500`; `symtab_rom 0x1ED0270`, `desc_rom 0x1ED2780`, `image_rom 0x1ED3B20` → 2372 symbols, 157 modules.
 
-- [ ] **Step 1: Add encoders and the synthetic layout ROM to `synth.py`**
+- [x] **Step 1: Add encoders and the synthetic layout ROM to `synth.py`**
 
 Append to `tools/romtool/tests/synth.py`:
 ```python
@@ -363,7 +363,7 @@ def make_layout_rom() -> bytearray:
     return b
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tools/romtool/tests/test_layout.py`:
 ```python
@@ -420,12 +420,12 @@ def test_real_rom_layout(rom):
     assert read_module_tables(rom) == EXPECTED_TABLES
 ```
 
-- [ ] **Step 3: Run tests to verify they fail**
+- [x] **Step 3: Run tests to verify they fail**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_layout.py`
 Expected: FAIL — `No module named 'romtool.layout'`.
 
-- [ ] **Step 4: Implement `layout.py`**
+- [x] **Step 4: Implement `layout.py`**
 
 `tools/romtool/romtool/layout.py`:
 ```python
@@ -541,12 +541,12 @@ def read_module_tables(rom: bytes) -> ModuleTables:
     return ModuleTables(symtab, desc, image)
 ```
 
-- [ ] **Step 5: Run tests to verify they pass**
+- [x] **Step 5: Run tests to verify they pass**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_layout.py`
 Expected: 6 passed.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tools/romtool
