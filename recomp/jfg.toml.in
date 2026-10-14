@@ -1,0 +1,30 @@
+# N64Recomp configuration for Jet Force Gemini (USA).
+# romtool build-elf fills in the output directory and appends the generated hook entries.
+
+[input]
+entrypoint = 0x80000400
+elf_path = "@GENERATED@/jfg.elf"
+output_func_path = "@GENERATED@/funcs"
+relocatable_sections_path = "@GENERATED@/relocatable_sections.txt"
+recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\""
+functions_per_output_file = 50
+
+[patches]
+stubs = []
+ignored = []
+
+# Register a module with the runtime whenever the game DMAs its code into RAM (all load paths use this).
+[[patches.hook]]
+func = "dma_copy"
+text = "jfg_on_dma(rdram, (uint32_t)ctx->r4, (uint32_t)ctx->r5, (uint32_t)ctx->r6);"
+
+# Unregister a module just before the game marks it unloaded ($s3 holds the module index).
+[[patches.hook]]
+func = "module_unload"
+before_vram = 0x800537E0
+text = "jfg_on_module_unload(rdram, (uint32_t)ctx->r19);"
+
+# Debug visibility into the game's lazy linker.
+[[patches.hook]]
+func = "lazy_link"
+text = "jfg_on_lazy_link(rdram, (uint32_t)ctx->r31);"

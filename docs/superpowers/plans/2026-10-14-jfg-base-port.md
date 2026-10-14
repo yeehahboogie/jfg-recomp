@@ -2707,12 +2707,12 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
   - `romtool disasm ROM --section N --address A [--count C]`
 - `generated/jfg.toml` = `recomp/jfg.toml.in` with `@GENERATED@` replaced by the absolute output dir, plus one `[[patches.hook]]` per `Hook`.
 
-- [ ] **Step 1: Create the N64Recomp config template**
+- [x] **Step 1: Create the N64Recomp config template**
 
 `recomp/jfg.toml.in`:
 ```toml
 # N64Recomp configuration for Jet Force Gemini (USA).
-# romtool build-elf replaces @GENERATED@ and appends generated [[patches.hook]] entries.
+# romtool build-elf fills in the output directory and appends the generated hook entries.
 
 [input]
 entrypoint = 0x80000400
@@ -2760,7 +2760,7 @@ address = 0x80054530
 name = "lazy_link"
 ```
 
-- [ ] **Step 2: Write the failing CLI tests**
+- [x] **Step 2: Write the failing CLI tests**
 
 `tools/romtool/tests/test_cli.py`:
 ```python
@@ -2800,12 +2800,12 @@ def test_build_elf(rom, tmp_path):
     assert "@GENERATED@" not in toml and toml.count("[[patches.hook]]") == 3 + 2
 ```
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `tools/romtool/.venv/bin/pip install -q -e 'tools/romtool[test,disasm]' && tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_cli.py`
 Expected: FAIL — `No module named romtool.cli`.
 
-- [ ] **Step 4: Implement `cli.py`**
+- [x] **Step 4: Implement `cli.py`**
 
 `tools/romtool/romtool/cli.py`:
 ```python
@@ -2924,12 +2924,12 @@ if __name__ == "__main__":
 ```
 Add to `pyproject.toml`: in `[project.optional-dependencies]` set `test = ["pytest>=8", "pyelftools>=0.31", "xxhash>=3"]` and add `hash = ["xxhash>=3"]`. Reinstall: `tools/romtool/.venv/bin/pip install -q -e 'tools/romtool[test,disasm]'`.
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool`
 Expected: all pass.
 
-- [ ] **Step 6: Generate the real inputs**
+- [x] **Step 6: Generate the real inputs**
 
 ```bash
 source tools/paths.env
@@ -2938,7 +2938,7 @@ tools/romtool/.venv/bin/romtool info jfg.z64
 ```
 Expected: `wrote …/generated: N functions, M relocations, 1028 thunks, 2 hooks`, and the XXH3 hash (save it for Task 12).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add tools/romtool recomp

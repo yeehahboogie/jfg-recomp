@@ -140,3 +140,19 @@ reason = "CIC-6105 check: compares RAM word 0x800002E8 (read via kseg1) with 0xC
 section = 0
 address = 0x80099D40
 name = "__osDisableInt"        # n64sym also matched this name inside Rare's guarded copy (0x80048B0C), so it was dropped as ambiguous
+
+# --- functions hooked by recomp/jfg.toml.in (named here so n64sym can never rename them) ---
+[[name]]
+section = 0
+address = 0x8004D640
+name = "dma_copy"
+
+[[name]]
+section = 0
+address = 0x8005372C
+name = "module_unload"
+
+[[name]]
+section = 0
+address = 0x80054530
+name = "lazy_link"

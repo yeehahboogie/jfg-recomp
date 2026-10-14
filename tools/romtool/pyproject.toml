@@ -10,7 +10,8 @@ requires-python = ">=3.12"
 dependencies = []
 
 [project.optional-dependencies]
-test = ["pytest>=8", "pyelftools>=0.31"]
+test = ["pytest>=8", "pyelftools>=0.31", "xxhash>=3"]
+hash = ["xxhash>=3"]
 disasm = ["rabbitizer>=1.12"]
 
 [project.scripts]
