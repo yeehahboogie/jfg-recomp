@@ -3376,7 +3376,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 - Consumes: `build/JFGRecompiled`.
 - Produces: `scripts/smoke.sh` — exit 0 when the port runs for 90 s without dying, loads modules, and logs no fatal runtime messages.
 
-- [ ] **Step 1: Write the smoke script**
+- [x] **Step 1: Write the smoke script**
 
 `scripts/smoke.sh`:
 ```bash
@@ -3399,7 +3399,7 @@ exit $fail
 ```
 `chmod +x scripts/smoke.sh`. This needs a display; if `$DISPLAY`/`$WAYLAND_DISPLAY` is unset in this shell, ask the user to run `! scripts/smoke.sh` and paste nothing — the log lands in `build/smoke.log` for inspection.
 
-- [ ] **Step 2: Iterate until the smoke test passes**
+- [x] **Step 2: Iterate until the smoke test passes**
 
 Run `scripts/smoke.sh`. For each failure, read `build/smoke.log` and fix the root cause (use superpowers:systematic-debugging):
 - `Failed to find function at 0x8xxxxxxx` → an address that should be a function isn't registered: if it's in a module's range, a load path bypassed `jfg_on_dma` (check the size/rom match and that `dma_copy` is the routine the loader calls) or a function boundary is missing (add start); if it's a main address, a missing function start.
