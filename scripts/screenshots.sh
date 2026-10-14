@@ -9,7 +9,7 @@ times=("${@:-8 14 20 26 32 40}")
 read -r -a times <<< "${times[*]}"
 mkdir -p "$out"; rm -f "$out"/t*.png "$out"/sheet.png
 last=${times[-1]%.*}
-timeout -k 3 $((last + 6)) env JFG_AUTOSTART=1 build/JFGRecompiled > "$out/run.log" 2>&1 &
+timeout -k 3 $((last + 6)) env JFG_AUTOSTART=1 JFG_NO_VSYNC="${JFG_NO_VSYNC:-1}" build/JFGRecompiled > "$out/run.log" 2>&1 &
 pid=$!
 wid=""
 for _ in $(seq 50); do

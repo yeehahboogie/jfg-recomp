@@ -1,0 +1,29 @@
+--- a/ultramodern/src/events.cpp
++++ b/ultramodern/src/events.cpp
+@@ -1,4 +1,5 @@
+ #include <thread>
++#include <cstdlib>
+ #include <atomic>
+ #include <chrono>
+ #include <cinttypes>
+@@ -373,10 +374,20 @@
+                 [[maybe_unused]] auto renderer_end = std::chrono::high_resolution_clock::now();
+                 dp_complete();
+                 // printf("Renderer ProcessDList time: %d us\n", static_cast<u32>(std::chrono::duration_cast<std::chrono::microseconds>(renderer_end - renderer_start).count()));
++                static const bool time_tasks = std::getenv("JFG_DEBUG_TASKTIME") != nullptr; // diagnosis aid: log slow tasks/presents
++                if (time_tasks) {
++                    auto us = std::chrono::duration_cast<std::chrono::microseconds>(renderer_end - renderer_start).count();
++                    if (us > 50000) fprintf(stderr, "[task] send_dl took %lld ms\n", (long long)(us / 1000));
++                }
+             }
+             else if (const auto* screen_update_action = std::get_if<ScreenUpdateAction>(&action)) {
+                 events_context.vi.update_screen_regs = screen_update_action->regs;
++                auto screen_start = std::chrono::high_resolution_clock::now(); // for JFG_DEBUG_TASKTIME
+                 renderer_context->update_screen();
++                if (std::getenv("JFG_DEBUG_TASKTIME")) {
++                    auto us = std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - screen_start).count();
++                    if (us > 50000) fprintf(stderr, "[task] update_screen took %lld ms\n", (long long)(us / 1000));
++                }
+                 display_refresh_rate = renderer_context->get_display_framerate();
+                 resolution_scale = renderer_context->get_resolution_scale();
+             }

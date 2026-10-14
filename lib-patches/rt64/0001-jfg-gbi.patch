@@ -409,6 +409,23 @@ index 0000000..02ad3e8
 +        void setup(GBI *gbi);
 +    };
 +};
+diff --git a/src/hle/rt64_application.cpp b/src/hle/rt64_application.cpp
+index 4e83f71..f4f3648 100644
+--- a/src/hle/rt64_application.cpp
++++ b/src/hle/rt64_application.cpp
+@@ -263,6 +263,12 @@ namespace RT64 {
+         const uint32_t bufferCount = (userConfig.displayBuffering == UserConfiguration::DisplayBuffering::Triple) ? 3 : 2;
+         swapChain = presentGraphicsWorker->commandQueue->createSwapChain(appWindow->windowHandle, bufferCount, RenderFormat::B8G8R8A8_UNORM);
+ 
++        // JFG_NO_VSYNC=1 (development aid): present immediately. With vsync, a window the compositor isn't showing
++        // (screen blanked, minimised) is paced by XWayland's ~1 Hz fallback timer and the game crawls.
++        if (getenv("JFG_NO_VSYNC") != nullptr) {
++            swapChain->setVsyncEnabled(false);
++        }
++
+         // Before configuring multisampling, make sure the device actually supports it for the formats we'll use. If it doesn't, turn off antialiasing in the configuration.
+         const RenderSampleCounts colorSampleCounts = device->getSampleCountsSupported(RenderTarget::colorBufferFormat(usesHDR));
+         const RenderSampleCounts depthSampleCounts = device->getSampleCountsSupported(RenderTarget::depthBufferFormat());
 diff --git a/src/hle/rt64_interpreter.cpp b/src/hle/rt64_interpreter.cpp
 index dccaa87..343a2b9 100644
 --- a/src/hle/rt64_interpreter.cpp

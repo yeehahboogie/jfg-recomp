@@ -75,3 +75,17 @@ text = "ctx->r2 = 1; return;"
 [[patches.hook]]
 func = "cic6105_challenge"
 text = "jfg_cic_challenge(rdram, ctx); return;"
+
+# Rare's RSP/RDP watchdog (func_80050154, run every retrace): if one graphics task has been in flight for 11
+# retraces it shows "SP CRASHED / DP CRASHED". In the port the RSP and RDP can't hang; a task only takes that long
+# when the host stalls (e.g. presentation blocks while the window is hidden or the screen is blanked), which must not
+# end the game. Raise both thresholds to 32767 retraces (~9 minutes): still a detector for a genuine hang.
+[[patches.instruction]]
+func = "func_80050154"
+vram = 0x800501D4
+value = 0x29417FFF     # slti $at, $t2, 0x7FFF   (was 0xB: SP counter)
+
+[[patches.instruction]]
+func = "func_80050154"
+vram = 0x80050290
+value = 0x29017FFF     # slti $at, $t0, 0x7FFF   (was 0xB: DP counter)
