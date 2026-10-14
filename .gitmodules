@@ -7,16 +7,16 @@
 [submodule "lib/freetype-windows-binaries"]
 	path = lib/freetype-windows-binaries
 	url = https://github.com/ubawurinna/freetype-windows-binaries
-[submodule "lib/mm-decomp"]
-	path = lib/mm-decomp
-	url = https://github.com/zeldaret/mm
 [submodule "lib/lunasvg"]
 	path = lib/lunasvg
 	url = https://github.com/sammycage/lunasvg
 [submodule "lib/N64ModernRuntime"]
 	path = lib/N64ModernRuntime
 	url = https://github.com/N64Recomp/N64ModernRuntime.git
-[submodule "Zelda64RecompSyms"]
-	path = Zelda64RecompSyms
-	url = https://github.com/Zelda64Recomp/Zelda64RecompSyms
-
+[submodule "lib/N64Recomp"]
+	path = lib/N64Recomp
+	url = https://github.com/N64Recomp/N64Recomp.git
+[submodule "lib/n64sym"]
+	path = lib/n64sym
+	url = https://github.com/shygoo/n64sym.git
+	ignore = dirty

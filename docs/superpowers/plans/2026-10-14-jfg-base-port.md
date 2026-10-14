@@ -1615,14 +1615,14 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Decisions fixed here: keep Zelda64Recomp's pinned runtime/RT64 submodule commits (a known-working pair — do **not** bump them); build N64Recomp from the commit Zelda64Recomp's CI uses, bumping only if a feature this plan needs (`[[patches.hook]]`) is missing.
 
-- [ ] **Step 1: Install system packages**
+- [ ] **Step 1: Install system packages** *(deferred: needs the user's sudo password; required before Task 12)*
 
 Run: `sudo -n true 2>/dev/null && echo SUDO_OK || echo SUDO_NEEDS_PASSWORD`
 If `SUDO_OK`: `sudo apt-get install -y clang lld llvm cmake ninja-build make g++ libsdl2-dev libgtk-3-dev libfreetype-dev`.
 If `SUDO_NEEDS_PASSWORD`: stop and ask the user to run `! sudo apt-get install -y clang lld llvm cmake ninja-build make g++ libsdl2-dev libgtk-3-dev libfreetype-dev`, then continue.
 Verify: `clang --version && ld.lld --version && pkg-config --modversion sdl2 freetype2` — all print versions.
 
-- [ ] **Step 2: Merge Zelda64Recomp's history into `base-port`**
+- [x] **Step 2: Merge Zelda64Recomp's history into `base-port`**
 
 ```bash
 git remote add upstream https://github.com/Zelda64Recomp/Zelda64Recomp.git
@@ -1633,7 +1633,7 @@ git merge --allow-unrelated-histories "upstream/$UPSTREAM_BRANCH" -m "Import Zel
 Expected conflict: `.gitignore` only. Resolve by keeping **both** sets of lines (ours first: the ROM/derived-data rules must remain), `git add .gitignore`, `git commit --no-edit`.
 Record the upstream commit: `git rev-parse "upstream/$UPSTREAM_BRANCH"` → put it in the commit message of Step 4.
 
-- [ ] **Step 3: Drop Majora's Mask submodules, add ours, init the rest**
+- [x] **Step 3: Drop Majora's Mask submodules, add ours, init the rest**
 
 ```bash
 git rm -q lib/mm-decomp Zelda64RecompSyms
@@ -1646,7 +1646,7 @@ git submodule update --init --recursive
 ```
 If `N64RECOMP_COMMIT` is empty, open `.github/workflows/*.yml`, find how CI obtains N64Recomp, and use that commit; record it.
 
-- [ ] **Step 4: Build the tools**
+- [x] **Step 4: Build the tools**
 
 ```bash
 cmake -S lib/N64Recomp -B build/tools/N64Recomp -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
@@ -1661,13 +1661,13 @@ RSPRECOMP=build/tools/N64Recomp/RSPRecomp
 N64SYM=lib/n64sym/<path printed above>
 ```
 
-- [ ] **Step 5: Check the N64Recomp features this plan relies on**
+- [x] **Step 5: Check the N64Recomp features this plan relies on**
 
 Run: `grep -n '"hook"\|patches.hook\|before_vram' lib/N64Recomp/src/config.cpp | head`
 Expected: matches (hooks supported). If none: `git -C lib/N64Recomp checkout -q main && git -C lib/N64Recomp log -1 --format=%H`, rebuild (Step 4), re-check, and note "bumped N64Recomp for patches.hook" in the commit.
 Also run: `grep -n 'relocatable_sections_path\|elf_path' lib/N64Recomp/src/config.cpp | head -4` — expected: both keys present.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add -A .gitmodules lib/N64Recomp lib/n64sym tools/paths.env .gitignore
@@ -3019,6 +3019,8 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 ---
 
 ### Task 12: Frontend — JFG game entry, module registration, hardware patches
+
+> **Precondition:** Task 6 Step 1 (system packages: clang, lld, SDL2, …) must be done. If `clang --version` fails, stop and ask the user to run the install command from Task 6 Step 1.
 
 **Files:**
 - Create: `include/jfg_hooks.h`, `src/jfg/jfg_hooks.cpp`
