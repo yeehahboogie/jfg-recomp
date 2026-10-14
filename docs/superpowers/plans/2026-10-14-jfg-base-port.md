@@ -3318,7 +3318,7 @@ Facts to build on (Task 6 research):
 - Families are small setup functions layered on `GBI_F3D::setup` that override `gbi->map[opcode]` entries; `rt64_gbi_f3dpd.cpp` (Perfect Dark, another Rare microcode) is the model, using `state->rsp->setVertexPD(...)`-style helpers.
 - JFG's microcode is Diddy Kong Racing's F3D variant with one change (GLideN64 `src/uCodes/F3DDKR.cpp`, `F3DJFG_Init` = `F3DDKR_Init` + a `G_DMA_VTX` that uses the vertex count without `+1`). DKR additions over F3D: `G_DMA_MTX 0x01`, `G_DMA_TEX_OFFSET 0x02`, `G_DMA_VTX 0x04`, `G_DMA_TRI 0x05`, `G_DMA_DL 0x07`, `G_DMA_OFFSETS 0xBF`, and `G_MOVEWORD` cases for matrix index and billboarding. Read GLideN64's implementation for exact bit layouts and semantics; write the RT64 version independently against RT64's APIs (different code base and licence).
 
-- [ ] **Step 1: Confirm the failure**
+- [x] **Step 1: Confirm the failure**
 
 Run: `JFG_DEBUG_MODULES=1 timeout 30 build/JFGRecompiled 2>&1 | tee build/run1.log | grep -m3 -E "GBI|HASH|Detected name"`
 Expected: `Unable to find a matching GBI …`. (If the ROM is not yet stored by the launcher, pick `jfg.z64` in the launcher UI once; ask the user to do this if no display is available to this shell.)

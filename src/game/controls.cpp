@@ -1,6 +1,10 @@
 #include <array>
+#include <chrono>
+#include <cstdlib>
+#include <vector>
 
 #include "librecomp/helpers.hpp"
+#include "jfg_input_script.h"
 #include "recomp_input.h"
 #include "ultramodern/ultramodern.hpp"
 
@@ -106,6 +110,17 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
 
         cur_y = recomp::get_input_analog(keyboard_input_mappings[(size_t)GameInput::Y_AXIS_POS])
                 - recomp::get_input_analog(keyboard_input_mappings[(size_t)GameInput::Y_AXIS_NEG]) + joystick_y;
+    }
+
+    // Development aid: JFG_INPUT_SCRIPT presses buttons at set times (see jfg_input_script.h).
+    static const std::vector<jfg::InputEvent> input_script = []() {
+        const char* script = std::getenv("JFG_INPUT_SCRIPT");
+        return script != nullptr ? jfg::parse_input_script(script) : std::vector<jfg::InputEvent>{};
+    }();
+    if (!input_script.empty()) {
+        static const auto script_start = std::chrono::steady_clock::now();
+        double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - script_start).count();
+        jfg::apply_input_script(input_script, t, &cur_buttons, &cur_x, &cur_y);
     }
 
     *buttons_out = cur_buttons;

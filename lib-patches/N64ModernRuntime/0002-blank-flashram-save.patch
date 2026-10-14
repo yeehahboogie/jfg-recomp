@@ -1,0 +1,16 @@
+diff --git a/librecomp/src/pi.cpp b/librecomp/src/pi.cpp
+index d7ebd53..e875f5c 100644
+--- a/librecomp/src/pi.cpp
++++ b/librecomp/src/pi.cpp
+@@ -235,8 +235,9 @@ void read_save_file() {
+         save_file.read(save_context.save_buffer.data(), save_context.save_buffer.size());
+     }
+     else {
+-        // Otherwise clear the save file to all zeroes.
+-        std::fill(save_context.save_buffer.begin(), save_context.save_buffer.end(), 0);
++        // Otherwise start from a blank save: erased FlashRAM reads as 0xFF (games check for that), other types as zeroes.
++        const char blank = recomp::get_save_type() == recomp::SaveType::Flashram ? char(0xFF) : 0;
++        std::fill(save_context.save_buffer.begin(), save_context.save_buffer.end(), blank);
+     }
+ }
+ 

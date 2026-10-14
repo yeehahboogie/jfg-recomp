@@ -11,3 +11,5 @@ build/libultra_stubs_test
 build/cic6105_test
 "$CXX" -std=c++20 -Wall -Iinclude -Ilib/N64ModernRuntime/N64Recomp/include src/jfg/fpu_mode.cpp tests/fpu_mode_test.cpp -o build/fpu_mode_test
 build/fpu_mode_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/input_script.cpp tests/input_script_test.cpp -o build/input_script_test
+build/input_script_test
