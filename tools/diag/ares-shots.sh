@@ -26,13 +26,15 @@ done
 start=$(date +%s.%N)
 for t in "${times[@]}"; do   # seconds after the pad started (~ when ares launched)
   sleep "$(awk -v s="$start" -v t="$t" -v now="$(date +%s.%N)" 'BEGIN { d = s + t - 1 - now; print (d > 0 ? d : 0) }')"
+  xwininfo -id "$wid" > /dev/null 2>&1 || { echo "ares-shots: ares window closed at ${t}s" >&2; break; }
   import -window "$wid" "$out/t$t.png"
 done
 python3 - "$out" "${times[@]}" <<'PY'
 import sys
 from PIL import Image
 out, times = sys.argv[1], sys.argv[2:]
-ims = [Image.open(f"{out}/t{t}.png").convert("RGB") for t in times]
+import os
+ims = [Image.open(f"{out}/t{t}.png").convert("RGB") for t in times if os.path.exists(f"{out}/t{t}.png")]
 w, h = ims[0].size[0] // 2, ims[0].size[1] // 2
 cols = 4
 sheet = Image.new("RGB", (w * cols, h * ((len(ims) + cols - 1) // cols)))

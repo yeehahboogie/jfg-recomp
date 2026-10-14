@@ -20,6 +20,8 @@ done
 start=$(date +%s.%N)
 for t in "${times[@]}"; do   # seconds after the window appears; fractions allowed
   sleep "$(awk -v s="$start" -v t="$t" -v now="$(date +%s.%N)" 'BEGIN { d = s + t - now; print (d > 0 ? d : 0) }')"
+  # Never call import on a window that no longer exists: it would fall back to grabbing the mouse for a selection.
+  xwininfo -id "$wid" > /dev/null 2>&1 || { echo "screenshots: game window closed at ${t}s" >&2; break; }
   import -window "$wid" "$out/t$t.png"
 done
 wait "$pid" || true
@@ -27,7 +29,8 @@ python3 - "$out" "${times[@]}" <<'PY'
 import sys
 from PIL import Image
 out, times = sys.argv[1], sys.argv[2:]
-ims = [Image.open(f"{out}/t{t}.png").convert("RGB") for t in times]
+import os
+ims = [Image.open(f"{out}/t{t}.png").convert("RGB") for t in times if os.path.exists(f"{out}/t{t}.png")]
 w, h = ims[0].size[0] // 2, ims[0].size[1] // 2
 cols = 3
 sheet = Image.new("RGB", (w * cols, h * ((len(ims) + cols - 1) // cols)))
