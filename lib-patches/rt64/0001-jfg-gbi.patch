@@ -644,3 +644,64 @@ index 1611b7a..793cb23 100644
          template<bool addEmptyVelocity>
          void setVertexCommon(uint8_t dstIndex, uint8_t dstMax);
          void modifyVertex(uint16_t dstIndex, uint16_t dstAttribute, uint32_t value);
+diff --git a/src/hle/rt64_vi.cpp b/src/hle/rt64_vi.cpp
+index 8d66101..376bfd8 100644
+--- a/src/hle/rt64_vi.cpp
++++ b/src/hle/rt64_vi.cpp
+@@ -18,23 +18,52 @@ namespace RT64 {
+     const uint32_t VI::Width = 640;
+     const uint32_t VI::Height = 480;
+ 
++    // The vertical active area of a standard mode, in half-lines: 0x25..0x1FF on NTSC/MPAL, 0x5F..0x239 on PAL.
++    static void standardVerticalRegion(const VI &vi, float &start, float &length) {
++        start = (vi.vSync > 600) ? 95.0f : 37.0f;
++        length = 474.0f;
++    }
++
++    static bool verticalRegionUsable(const VI &vi) {
++        return (vi.vRegion.vEnd > vi.vRegion.vStart) && (vi.yTransform.yScale > 0);
++    }
++
+     RectI VI::viewRectangle() const {
+-        // TODO
++        // Horizontally the whole width (TODO). Vertically, the framebuffer starts at vStart and is shown at
++        // (1024 / yScale) of a standard mode's height, so modes with a smaller region and a larger yScale
++        // (letterboxing, e.g. Jet Force Gemini's cutscenes) show their image squeezed between bars, as on a TV.
++        // A standard mode maps to exactly the full height.
+         RectI rect;
+         rect.x = 0;
+-        rect.y = 0;
+         rect.w = Width;
++        rect.y = 0;
+         rect.h = Height;
++        if (verticalRegionUsable(*this)) {
++            float refStart, refLength;
++            standardVerticalRegion(*this, refStart, refLength);
++            rect.y = lround((float(vRegion.vStart) - refStart) / refLength * Height);
++            rect.h = lround(yScaleFloat() * Height);
++        }
++
+         return rect;
+     }
+ 
+     RectI VI::cropRectangle() const {
+-        // TODO
++        // Horizontally the whole width (TODO). Vertically, only the scanlines between vStart and vEnd are shown.
+         RectI rect;
+         rect.x = 0;
+-        rect.y = 0;
+         rect.w = Width;
++        rect.y = 0;
+         rect.h = Height;
++        if (verticalRegionUsable(*this)) {
++            float refStart, refLength;
++            standardVerticalRegion(*this, refStart, refLength);
++            const float top = std::clamp((float(vRegion.vStart) - refStart) / refLength, 0.0f, 1.0f);
++            const float bottom = std::clamp((float(vRegion.vEnd) - refStart) / refLength, 0.0f, 1.0f);
++            rect.y = lround(top * Height);
++            rect.h = lround((bottom - top) * Height);
++        }
++
+         return rect;
+     }
+ 
