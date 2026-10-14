@@ -53,6 +53,28 @@ int main() {
     jfg_on_dma(rdram.data(), 0x1F00000, 0x80400100, 0x900);   // module 2 over module 4's range
     assert((calls == std::vector<std::string>{"unload 80400000 220", "load 1F00000 80400100 900"}));
     jfg_on_module_unload(rdram.data(), 2);
+
+    // The game's table holds each module's current address (entry +0; 0 once freed). Registrations follow it
+    // once confirmed there, catching frees and moves the hooks don't see.
+    w(0x800FEAAC, 3);
+    calls.clear();
+    jfg_on_dma(rdram.data(), 0x1F00000, 0x80300000, 0x800);           // module 2 loaded; table not yet updated
+    jfg_on_dma(rdram.data(), 0x1F00000 + 0x900, 0x80310000, 0x40);    // second DMA of the same load: keep it
+    jfg_on_lazy_link(rdram.data(), 0x80001008);
+    assert(calls == std::vector<std::string>{"load 1F00000 80300000 900"});
+    w(table + 32 * 2, 0x80300000);                                     // game records the address: confirmed
+    jfg_on_lazy_link(rdram.data(), 0x80001008);
+    assert(calls.size() == 1);
+    w(table + 32 * 2, 0x80380000);                                     // game moved it (copied, no DMA)
+    jfg_on_lazy_link(rdram.data(), 0x80001008);
+    assert((calls == std::vector<std::string>{"load 1F00000 80300000 900", "unload 80300000 900", "load 1F00000 80380000 900"}));
+    w(table + 32 * 2, 0);                                              // game freed it without the unload hook
+    jfg_on_dma(rdram.data(), 0x1E00000, 0x80390000, 0x10);             // any later event notices
+    assert(calls.back() == "unload 80380000 900");
+    calls.clear();
+    jfg_on_module_unload(rdram.data(), 2);                             // already gone: no-op
+    assert(calls.empty());
+
     w(0x80001000, 0x3C018041); w(0x80001004, 0x8C238000);             // lui at,0x8041 ; lw v1,-0x8000(at)
     assert(jfg_patched_hi_lo(rdram.data(), 0x80001000, 0x80001004) == 0x80408000);
     fake_rom[0x454] = 0x01; fake_rom[0x455] = 0x09; fake_rom[0x456] = 0x08; fake_rom[0x457] = 0x2B;
