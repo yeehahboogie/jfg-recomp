@@ -1933,7 +1933,7 @@ Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 
 Format rules N64Recomp depends on (verified in its `src/elf.cpp`): every PROGBITS section must lie inside a `PT_LOAD` segment whose `p_paddr` is its ROM address (LMA); ROM addresses are LMA − min LMA; REL entries' `r_offset` is the patch site's **virtual address**; relocations are matched to sections by the name `.rel<name>`; HI16/LO16 pairing is by table order (keep input order); only `STT_FUNC` symbols with a size become functions.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 `tools/romtool/tests/test_elf.py`:
 ```python
@@ -1997,12 +1997,12 @@ def test_rejects_unknown_target(tmp_path):
         write_elf(tmp_path / "x.elf", [Section(".a", 0, 4, data=bytes(4), lma=0)], [], [Rel(".a", 0, ".nope", 2)], 0)
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_elf.py`
 Expected: FAIL — `No module named 'romtool.elf'`.
 
-- [ ] **Step 3: Implement `elf.py`**
+- [x] **Step 3: Implement `elf.py`**
 
 `tools/romtool/romtool/elf.py`:
 ```python
@@ -2135,12 +2135,12 @@ def write_elf(path: str | Path, sections: list[Section], funcs: list[FuncSym], r
     Path(path).write_bytes(out)
 ```
 
-- [ ] **Step 4: Run tests**
+- [x] **Step 4: Run tests**
 
 Run: `tools/romtool/.venv/bin/pytest -q tools/romtool/tests/test_elf.py`
 Expected: 4 passed.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add tools/romtool
