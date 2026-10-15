@@ -123,6 +123,8 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
   - **74 AlphaSewer Stairs** matches ares: the "box" is a wall in the scene.
   - **197 Canyon Multi** is a multiplayer arena warped into a one-player game, an invalid state in both: ares white with no HUD, the port black with the HUD. Check it through the multiplayer menu.
   - **Black cutscenes after a warp (240, 253, 325, 345, 378, 380)** are black in ares too, after a confirmed warp. They need the state their normal arrival sets up; check them in story order.
+    - **325 Ant Attack Seq verified:** on its normal arrival in the new-game intro (about 119 s) it renders correctly.
+    - The rest are started by story events (Vela freed from the CargoShip brig, Floyd regenerating), not exits, so the exit crawl can't reach them.
   - Test and "NOT USED" levels (83, 105, 109, 111, 137) look empty, which is expected.
 - **Widescreen polish: black screen corners in the ast levels (220, 224).** ares (4:3) shows the same scene with the corners covered by the level's backdrop; the wider view shows past it. Content limit, not a renderer fault; low priority.
 
