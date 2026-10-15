@@ -9,6 +9,7 @@ out="$1"; shift
 # never open windows on the user's screen or take keyboard focus. JFG_ON_DESKTOP=1 runs on the real display instead.
 # JFG_XDISPLAY picks the virtual display number (default 99), so several runs can go in parallel.
 if [ "${JFG_ON_DESKTOP:-0}" != 1 ]; then
+  export SDL_AUDIODRIVER=dummy   # silent: test runs must not play sound on the user's desktop
   xd=":${JFG_XDISPLAY:-99}"
   export DISPLAY="$xd"
   unset WAYLAND_DISPLAY

@@ -30,7 +30,10 @@ fi
 python3 tools/diag/vpad.py run "$script" > "$out/vpad.log" 2>&1 &
 pad=$!
 sleep 0.5
-timeout -k 3 $((last + 10)) flatpak run --user dev.ares.ares "$PWD/jfg.z64" > "$out/run.log" 2>&1 &
+# No access to the desktop's sound server unless on the desktop: test runs must stay silent.
+mute=(--nosocket=pulseaudio --env=SDL_AUDIODRIVER=dummy --env=PULSE_SERVER=unix:/nonexistent)
+[ "${ARES_ON_DESKTOP:-0}" = 1 ] && mute=()
+timeout -k 3 $((last + 10)) flatpak run --user "${mute[@]}" dev.ares.ares "$PWD/jfg.z64" > "$out/run.log" 2>&1 &
 emu=$!
 warper=""
 if [ -n "${ARES_WARP:-}" ]; then
