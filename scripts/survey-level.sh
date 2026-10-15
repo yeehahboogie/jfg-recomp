@@ -9,7 +9,7 @@ mkdir -p "$out"
 rm -f "${APP_FOLDER_PATH:?set APP_FOLDER_PATH}"/saves/jfg.n64.us.bin*
 # Title -> New Game -> name entry -> start; the warp replaces the story intro (requested about 54 s in).
 menus="30+0.3 START; 36+0.3 START; 42+0.3 A; 49+0.2 A; 50.5+0.15 - 0 -1; 51.3+0.15 - 0 -1; 52.1+0.15 - 0 -1; 52.9+0.15 - 0 -1; 54+0.2 A"
-JFG_WARP="$target" JFG_DEBUG_LEVELS=1 JFG_INPUT_SCRIPT="$menus${extra:+; $extra}" \
+JFG_WARP="$target" JFG_DEBUG_LEVELS=1 JFG_INPUT_CLOCK="${JFG_INPUT_CLOCK:-frames:30}" JFG_INPUT_SCRIPT="$menus${extra:+; $extra}" \
   scripts/screenshots.sh "$out" 62 70 78 86 > /dev/null 2>&1 || true
 log="$out/run.log"
 errors=$(grep -cE "Failed to find function|unregistered|SP CRASHED|DP CRASHED|Assertion|Segmentation|Unhandled|fatal" "$log" || true)

@@ -2,6 +2,8 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "librecomp/helpers.hpp"
@@ -195,8 +197,25 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
         return script != nullptr ? jfg::parse_input_script(script) : std::vector<jfg::InputEvent>{};
     }();
     if (!input_script.empty()) {
+        // The script's clock: wall seconds by default. JFG_INPUT_CLOCK=frames:<rate> counts controller reads (one per
+        // game frame) instead, at <rate> reads per scripted second, so presses land on the same game state even when
+        // the machine is busy and the game falls behind the wall clock.
+        static const double frames_rate = []() {
+            const char* v = std::getenv("JFG_INPUT_CLOCK");
+            if (v == nullptr) return 0.0;
+            const std::string clock(v);
+            if (clock.rfind("frames:", 0) != 0) throw std::invalid_argument("JFG_INPUT_CLOCK: expected frames:<rate>, got '" + clock + "'");
+            return std::stod(clock.substr(7));
+        }();
         static const auto script_start = std::chrono::steady_clock::now();
-        double t = std::chrono::duration<double>(std::chrono::steady_clock::now() - script_start).count();
+        static uint64_t reads = 0;
+        reads++;
+        const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - script_start).count();
+        double t = frames_rate > 0.0 ? reads / frames_rate : wall;
+        static const bool debug_clock = std::getenv("JFG_DEBUG_INPUT_CLOCK") != nullptr;
+        if (debug_clock && reads % 120 == 0) {
+            std::fprintf(stderr, "[input] %llu reads at %.2f s (%.1f reads/s)\n", (unsigned long long)reads, wall, reads / wall);
+        }
         jfg::apply_input_script(input_script, t, &cur_buttons, &cur_x, &cur_y, &modern_in.stick_look_x,
                                 &modern_in.stick_look_y, &modern_in.mouse_dx, &modern_in.mouse_dy);
     }
