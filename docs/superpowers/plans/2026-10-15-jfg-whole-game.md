@@ -9,6 +9,8 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
    - `JFG_DEBUG_LEVELS=1` logs every `mainChangeLevel` call, timestamped, and the level being played. `JFG_DEBUG_LEVELS=names` also dumps all 412 level names once gameplay starts.
    - `JFG_WARP=<level>[:<entry>]` sends a new game straight to that level. It replaces the story intro (level 322, requested about 54 s in with the standard menu script). The character is the default, Vela, because character select is skipped.
    - `scripts/survey-level.sh LEVEL OUT` does one level: menus, warp, four screenshots and a health line. `scripts/survey-batch.sh ROOT LEVEL…` runs many.
+   - All runs use a private virtual display (`Xvfb :99`, GPU-rendered); nothing appears on the desktop.
+   - **Reference:** `ARES_WARP=<level> tools/diag/ares-shots.sh OUT "<menu script>" 62 70 78 86` shows the same level in ares.
    - The game's own cheat flags (`allLevelCheat`, `allweaponsCheat`, `invulnerabilityCheat`) can open the ship's map.
 2. **Survey each level.** Warp there, let it run, screenshot, and look for crashes, `Failed to find function`, unregistered modules and rendering faults.
 3. **Fix** what the survey finds, one root cause at a time (systematic debugging), committing and pushing each fix to `base-port`.
@@ -48,9 +50,9 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 | 61 | CargoSewer Lobby | ok | |
 | 113 | Termite level | ok | |
 | 115 | Swamp level | ok | |
-| 141 | Mizar Boss | **suspect** | White flat quads at the screen edges, void below, Vela in a T-pose. May be warp-only (scripted boss entry); needs the ares reference |
+| 141 | Mizar Boss | ok (warp artefact) | ares shows the same: white quad, void, T-pose. Warping into the scripted boss fight leaves it unset, so check in story order later |
 | 155 | MizarPalace | ok | |
-| 179 | Mine Cave Entrance | **bug** | Gameplay pillarboxed to 4:3: a big 2D tint wedge trips the full-screen-2D detection |
+| 179 | Mine Cave Entrance | **bug** | Gameplay pillarboxed to 4:3: the level's full-screen 2D tint (a pink wedge, also in ares) trips the full-screen-2D detection |
 | 225 | Ice level | ok | |
 | 267 | Gem level | ok | |
 | 271 | Space Station | ok (no player) | Cutscene-like |
@@ -66,6 +68,8 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 ## Open issues
 
 1. **Pillarbox on gameplay (179 Mine Cave Entrance).** The full-screen-2D rule (any affine batch whose bounding box covers the scissor) fires on a diagonal tint wedge. Gather triangle count and covered area for the title vignette vs the wedge (`JFG_DEBUG_PILLARBOX=1`), then tighten the rule.
-2. **141 Mizar Boss** looks wrong after a warp. Check a story-order arrival, or ares, before calling it a port bug.
-3. **ares no longer loads the ROM** (idle screen, no error, since 2026-10-14 20:00). Ruled out: flatpak file access (host), a leftover process, settings changes (only the virtual-pad bindings differ).
+2. **ares on the desktop** shows its idle screen and never loads the ROM (since 2026-10-14 20:00). On the virtual display (`:99`, Mesa OpenGL) it loads and runs at 60 VPS, so the desktop failure is likely its NVIDIA video path.
+   - `tools/diag/ares-shots.sh` runs ares there.
+   - `ARES_WARP=<level>[:<entry>]` sends ares's new game to any level, like the port's `JFG_WARP`. It uses `tools/diag/ares-warp.py` over ares's GDB server, which is enabled only for the run and verified off afterwards.
+   - **Every port finding can be compared with ares at the same level.**
 

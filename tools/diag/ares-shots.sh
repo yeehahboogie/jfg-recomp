@@ -6,16 +6,48 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 out="$1"; script="$2"; shift 2
+# Run on a private virtual X display (Xvfb) so ares never opens on the desktop (and because ares only loads the ROM
+# there on this machine). ARES_ON_DESKTOP=1 uses the real display.
+if [ "${ARES_ON_DESKTOP:-0}" != 1 ]; then
+  export DISPLAY=:99
+  unset WAYLAND_DISPLAY
+  if ! xwininfo -root -display :99 > /dev/null 2>&1; then
+    Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp > /dev/null 2>&1 &
+    for _ in $(seq 20); do sleep 0.2; xwininfo -root -display :99 > /dev/null 2>&1 && break; done
+  fi
+fi
+# ARES_WARP=<level>[:<entry>]: send the new game straight to that level (tools/diag/ares-warp.py, via ares's GDB
+# server, which is enabled only for this run: it listens on all interfaces).
+settings="$HOME/.var/app/dev.ares.ares/data/ares/settings.bml"
 times=("$@")
 mkdir -p "$out"; rm -f "${out:?}"/t*.png "${out:?}"/sheet.png
 [ -f jfg.flash ] && mv -f jfg.flash jfg.flash.bak
 last=${times[-1]%.*}
+if [ -n "${ARES_WARP:-}" ]; then
+  cp "$settings" "$out/settings.bml.orig"
+  sed -i '/^DebugServer/,/^[^ ]/ s/^  Enabled: false/  Enabled: true/; /^DebugServer/,/^[^ ]/ s/^  UseIPv4: false/  UseIPv4: true/' "$settings"
+fi
 python3 tools/diag/vpad.py run "$script" > "$out/vpad.log" 2>&1 &
 pad=$!
 sleep 0.5
 timeout -k 3 $((last + 10)) flatpak run --user dev.ares.ares "$PWD/jfg.z64" > "$out/run.log" 2>&1 &
 emu=$!
-cleanup() { kill "$pad" 2>/dev/null || true; kill "$emu" 2>/dev/null || true; pkill -f "ares $PWD/jfg.z64" 2>/dev/null || true; }
+warper=""
+if [ -n "${ARES_WARP:-}" ]; then
+  python3 tools/diag/ares-warp.py 127.0.0.1:9123 "${ARES_WARP%%:*}" "$( [ "${ARES_WARP#*:}" != "$ARES_WARP" ] && echo "${ARES_WARP#*:}" || echo 0)" > "$out/warp.log" 2>&1 &
+  warper=$!
+fi
+cleanup() {
+  kill "$pad" 2>/dev/null || true; kill "$emu" 2>/dev/null || true; [ -z "$warper" ] || kill "$warper" 2>/dev/null || true
+  pkill -f "ares $PWD/jfg.z64" 2>/dev/null || true
+  # ares writes its settings when it exits: wait for that, then put them back (debug server off again).
+  for _ in $(seq 50); do pgrep -f "ares $PWD/jfg.z64" > /dev/null || break; sleep 0.2; done
+  if [ -f "$out/settings.bml.orig" ]; then
+    cp "$out/settings.bml.orig" "$settings" && rm -f "$out/settings.bml.orig"
+    grep -A2 "^DebugServer" "$settings" | grep -q "Enabled: false" || echo "ares-shots: WARNING ares debug server still enabled in $settings" >&2
+  fi
+  true
+}
 trap cleanup EXIT
 wid=""
 for _ in $(seq 100); do
