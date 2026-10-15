@@ -74,6 +74,12 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- ~~**Black rectangle mid-screen** (120 Alien Cave Pyxis, 248/263/269 MilitaryBase, 275 Space Station landing, 258 Multi Race)~~: fixed.
+  - **What the game does:** it renders an effect into a 64×64 8-bit intensity buffer (`0x346780`), then samples it as an IA8 texture.
+  - **What went wrong:** RT64's GPU tile-copy path drew that texture as an opaque black rectangle.
+  - **Fix:** with `copyWithGPU` off, the data goes through RDRAM as on the hardware. All six match ares, still at 30 fps.
+  - **Debugging:** `JFG_DEBUG_FBTEX=1` logs framebuffer-as-texture reads.
+
 - **Full survey (383 levels), first 210 reviewed.** Suspects still to compare with ares when the machine is idle (the ares runs under survey load missed their menu timing): 62 CargoSewer End (near black, orange fragments), 68 AlphaSewer northhwest (white frame), 74 AlphaSewer Stairs (partly boxed), 120 Alien Cave Pyxis (black rectangle mid-screen), 166 seq part4 / 197 Canyon Multi / 199 Forest Intro (black). Test and "NOT USED" levels (83, 105, 109, 111, 137) look empty, which is expected.
 - **Widescreen polish: black screen corners in the ast levels (220, 224).** ares (4:3) shows the same scene with the corners covered by the level's backdrop; the wider view shows past it. Content limit, not a renderer fault; low priority.
 

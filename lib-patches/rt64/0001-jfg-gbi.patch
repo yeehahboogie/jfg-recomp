@@ -10,6 +10,22 @@ index fc06930..4579f5f 100644
      "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dwave.cpp"
      "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_f3dzex2.cpp"
      "${PROJECT_SOURCE_DIR}/src/gbi/rt64_gbi_l3dex2.cpp"
+diff --git a/src/common/rt64_emulator_configuration.cpp b/src/common/rt64_emulator_configuration.cpp
+index 303113d..8137847 100644
+--- a/src/common/rt64_emulator_configuration.cpp
++++ b/src/common/rt64_emulator_configuration.cpp
+@@ -11,6 +11,9 @@ namespace RT64 {
+         dither.postBlendNoise = true;
+         dither.postBlendNoiseNegative = false;
+         framebuffer.renderToRAM = true;
+-        framebuffer.copyWithGPU = true;
++        // JFG renders some effects into small 8-bit intensity buffers and samples them back as intensity-alpha textures
++        // (e.g. MilitaryBase, Alien Cave Pyxis, Space Station, multiplayer race). The GPU tile-copy path drew those as
++        // opaque black rectangles; going through RDRAM, as the hardware does, matches ares at full speed.
++        framebuffer.copyWithGPU = false;
+     }
+ };
+\ No newline at end of file
 diff --git a/src/gbi/rt64_gbi.cpp b/src/gbi/rt64_gbi.cpp
 index 7006549..720e61c 100644
 --- a/src/gbi/rt64_gbi.cpp
@@ -852,10 +868,27 @@ index 1611b7a..05b0a60 100644
          void setVertexCommon(uint8_t dstIndex, uint8_t dstMax);
          void modifyVertex(uint16_t dstIndex, uint16_t dstAttribute, uint32_t value);
 diff --git a/src/hle/rt64_state.cpp b/src/hle/rt64_state.cpp
-index 6b0bb31..38dbfaa 100644
+index 6b0bb31..f4392b5 100644
 --- a/src/hle/rt64_state.cpp
 +++ b/src/hle/rt64_state.cpp
-@@ -1895,6 +1895,11 @@ namespace RT64 {
+@@ -355,6 +355,16 @@ namespace RT64 {
+                         dstCallTile.reinterpretTile = checkResult.reinterpret || usesTLUT;
+                         dstCallTile.reinterpretSiz = checkResult.siz;
+                         dstCallTile.reinterpretFmt = checkResult.fmt;
++                        static const bool debugFbTex = getenv("JFG_DEBUG_FBTEX") != nullptr;
++                        if (debugFbTex) {
++                            static int logged = 0;
++                            if (logged < 40) {
++                                logged++;
++                                fprintf(stderr, "[fbtex] tile %u tmem %u: framebuffer copy %llu (%ux%u) fb fmt %u siz %u -> tile fmt %u siz %u, reinterpret %d tlut %u\n",
++                                    tileIndex, tile.tmem, (unsigned long long)checkResult.tileId, checkResult.tileWidth, checkResult.tileHeight,
++                                    checkResult.fmt, checkResult.siz, tile.fmt, tile.siz, dstCallTile.reinterpretTile ? 1 : 0, tlutFormat);
++                            }
++                        }
+ 
+                         // Native samplers can't apply the texel shift and mask that tile reinterpretation requires.
+                         if (dstCallTile.reinterpretTile) {
+@@ -1895,6 +1905,11 @@ namespace RT64 {
          if (fromEarlyPresent || viDifferent || fbChangesMade || screenChangesMade) {
              // Push a new renderer event to the timeline for presenting this VI.
              present.screenVI = newVI;
