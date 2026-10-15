@@ -29,3 +29,5 @@ build/aim_test
 build/aim_move_test
 "$CXX" -std=c++20 -Wall -Iinclude src/jfg/level_tools.cpp tests/level_tools_test.cpp -o build/level_tools_test
 build/level_tools_test
+"$CXX" -std=c++20 -Wall -g -Iinclude src/jfg/crash_handler.cpp tests/crash_handler_test.cpp -o build/crash_handler_test
+build/crash_handler_test

@@ -39,6 +39,7 @@
 #include "recomp_data.h"
 #include "jfg_overlays.hpp"
 #include "jfg_hooks.h"
+#include "jfg_crash_handler.h"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
 #include "librecomp/helpers.hpp"
@@ -572,6 +573,7 @@ void reorder_texture_pack(recomp::mods::ModContext&) {
 int main(int argc, char** argv) {
     (void)argc;
     (void)argv;
+    jfg::install_crash_handler(); // fail loudly: signal, address and backtrace on stderr
     recomp::Version project_version{};
     if (!recomp::Version::from_string(version_string, project_version)) {
         ultramodern::error_handling::message_box(("Invalid version string: " + version_string).c_str());

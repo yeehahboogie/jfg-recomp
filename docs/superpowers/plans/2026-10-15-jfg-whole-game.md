@@ -84,7 +84,11 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 - **Widescreen polish: black screen corners in the ast levels (220, 224).** ares (4:3) shows the same scene with the corners covered by the level's backdrop; the wider view shows past it. Content limit, not a renderer fault; low priority.
 
 0. ~~Scripted menu presses use the wall clock~~: fixed. `JFG_INPUT_CLOCK=frames:30` (the survey default) counts controller reads. All seven `no-warp` levels (89 133 243 245 246 254 270) passed on rerun under five-worker load.
-1b. **45 BigShip Sequence crashes the port** after a warp (silent exit before 62 s). ares shows black but keeps running, so the scene doesn't work after a warp on real hardware either, but the port must not crash. Reproduce with a debugger once the survey is done.
+1b. ~~45 BigShip Sequence and 273 Others crash the port after a warp~~: warp artefacts, not port bugs. The new crash handler names the routines:
+   - **45:** `levelInit` → `animseqInitPath` → `objSetupObject` → `severedLimbInit` reads through a NULL table pointer (N64 address `0x108`).
+   - **273:** `SquaddieInit` → `TryToSetAnim` reads N64 address `0x1`.
+   - On hardware both are unmapped reads that raise an exception (ares shows a black screen). The scenes need the state their normal arrival sets up, so check them in story order.
+   - The port segfaults instead of hanging, which only matters in such invalid states.
 
 1. ~~Pillarbox on gameplay (179)~~: fixed. Full-screen 2D layers now count as a 4:3 frame only if they are screen-sized and textured or one colour (images, the vignette, fades), or oversized and untextured (iris wipes). Gradient tints and glow sprites no longer count.
 2. **ares on the desktop** shows its idle screen and never loads the ROM (since 2026-10-14 20:00). On the virtual display (`:99`, Mesa OpenGL) it loads and runs at 60 VPS, so the desktop failure is likely its NVIDIA video path.
