@@ -14,7 +14,10 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
    - The game's own cheat flags (`allLevelCheat`, `allweaponsCheat`, `invulnerabilityCheat`) can open the ship's map.
 2. **Survey each level.** Warp there, let it run, screenshot, and look for crashes, `Failed to find function`, unregistered modules and rendering faults.
 3. **Fix** what the survey finds, one root cause at a time (systematic debugging), committing and pushing each fix to `base-port`.
-4. **Exit crawl (tool ready).** `JFG_TAKE_EXIT=<n>` (or survey job `LEVEL/n`), about 3 s into the level, sets the player's exit pointer to exit *n* (`pd+0xF4 = exit`, `pd+0x196 = −120`), as `exitControl` does for a player in range. The game's own transition code then changes level. Teleporting the player isn't enough, because objects outside the current region aren't updated. Result lines read `L/n ok exits=N last='playing level D'`. Example: 92/0 → 47 Forest Village (6 exits), 47/0 → 48.
+4. **Exit crawl: done (2026-10-15).** Every exit of every playable level was taken once through the game's own transition: 317 first exits plus 406 others, plus the pilot.
+   - **Method:** `JFG_TAKE_EXIT=<n>` (or survey job `LEVEL/n`), about 3 s into the level, sets the player's exit pointer to exit *n* (`pd+0xF4 = exit`, `pd+0x196 = −120`), as `exitControl` does for a player in range. The game's own transition code then changes level. Teleporting the player isn't enough, because objects outside the current region aren't updated.
+   - **Result:** no crashes after the overlay-unload fix (runtime patch 0004). Every exit changed level except 306 Mizar Boy Fall's (a falling sequence with no player control), 105 (marked NOT USED), and exit-less cutscene and test levels.
+   - **Level graph:** `python3 tools/diag/level-graph.py build/diag/level-names.txt 92 build/diag/survey/crawl-test build/diag/survey/crawl1 build/diag/survey/crawl2` gives 48 clusters, matching the planets (AlphaSewer, Canyon/CargoSewer, Goldwood with the CargoShip, Mizar's Palace, Swamp, Asteroid, Gem Quarry, race pits and others). 41 levels can be walked to from Goldwood; the rest are reached by ship travel or story events.
 5. **Progression without gameplay skill.** In a warped level, put the player on each exit object (type 8) in turn. The game's own exit logic then changes level, and the log shows where each exit goes. Over all levels this builds the level graph and checks every transition. Exits that won't fire show which story flag they need.
 6. **Then story order:** saves across planets, bosses and the ending. The user plays with input recording for anything skill-bound.
 
@@ -82,7 +85,7 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 - **What's been run:** the survey ran every boss play level for 30 s without a crash.
 - **What a warp misses:** a warp into a play level skips the sequence that starts the fight. In 372 Vela fires at an empty arena.
   - So defeat paths (phase changes, deaths, end sequences) need story-order arrival or the user's playthrough.
-- **Soak test (next, after the exit crawl):** every playable level for about 2 minutes, moving, jumping, firing and switching weapons with `JFG_CHEATS=invuln,weapons`. Catches crashes and hangs in combat code that the idle survey never reached.
+- **Soak test (running, `build/diag/survey/soak1`, 318 levels):** every playable level for about 2 minutes, moving, jumping, firing and switching weapons with `JFG_CHEATS=invuln,weapons`. Catches crashes and hangs in combat code that the idle survey never reached.
 
 ## Open issues
 
