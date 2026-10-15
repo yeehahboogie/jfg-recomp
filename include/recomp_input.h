@@ -18,46 +18,46 @@ namespace recomp {
     // First parameter is the enum name, second parameter is the bit field for the input (or 0 if there is no associated one), third is the readable name.
     // TODO refactor this to allow projects to rename these, or get rid of the readable name and leave that up to individual projects to map.
     #define DEFINE_N64_BUTTON_INPUTS() \
-        DEFINE_INPUT(A, 0x8000, "Action") \
-        DEFINE_INPUT(B, 0x4000, "Attack/Cancel") \
-        DEFINE_INPUT(Z, 0x2000, "Target") \
+        DEFINE_INPUT(A, 0x8000, "N64 A") \
+        DEFINE_INPUT(B, 0x4000, "N64 B") \
+        DEFINE_INPUT(Z, 0x2000, "N64 Z") \
         DEFINE_INPUT(START, 0x1000, "Start") \
-        DEFINE_INPUT(L, 0x0020, "Toggle map") \
-        DEFINE_INPUT(R, 0x0010, "Shield") \
-        DEFINE_INPUT(C_UP, 0x0008, "Look/Fairy") \
-        DEFINE_INPUT(C_LEFT, 0x0002, "Item 1") \
-        DEFINE_INPUT(C_DOWN, 0x0004, "Item 2") \
-        DEFINE_INPUT(C_RIGHT, 0x0001, "Item 3") \
-        DEFINE_INPUT(DPAD_UP, 0x0800, "Special Item 1") \
-        DEFINE_INPUT(DPAD_RIGHT, 0x0100, "Special Item 2") \
-        DEFINE_INPUT(DPAD_DOWN, 0x0400, "Special Item 3") \
-        DEFINE_INPUT(DPAD_LEFT, 0x0200, "Special Item 4")
+        DEFINE_INPUT(L, 0x0020, "N64 L") \
+        DEFINE_INPUT(R, 0x0010, "N64 R") \
+        DEFINE_INPUT(C_UP, 0x0008, "N64 C-Up") \
+        DEFINE_INPUT(C_LEFT, 0x0002, "N64 C-Left") \
+        DEFINE_INPUT(C_DOWN, 0x0004, "N64 C-Down") \
+        DEFINE_INPUT(C_RIGHT, 0x0001, "N64 C-Right") \
+        DEFINE_INPUT(DPAD_UP, 0x0800, "N64 D-Up") \
+        DEFINE_INPUT(DPAD_RIGHT, 0x0100, "N64 D-Right") \
+        DEFINE_INPUT(DPAD_DOWN, 0x0400, "N64 D-Down") \
+        DEFINE_INPUT(DPAD_LEFT, 0x0200, "N64 D-Left")
 
     #define DEFINE_N64_AXIS_INPUTS() \
-        DEFINE_INPUT(Y_AXIS_POS, 0, "Up") \
-        DEFINE_INPUT(Y_AXIS_NEG, 0, "Down") \
-        DEFINE_INPUT(X_AXIS_NEG, 0, "Left") \
-        DEFINE_INPUT(X_AXIS_POS, 0, "Right") \
+        DEFINE_INPUT(Y_AXIS_POS, 0, "Move up") \
+        DEFINE_INPUT(Y_AXIS_NEG, 0, "Move down") \
+        DEFINE_INPUT(X_AXIS_NEG, 0, "Move left") \
+        DEFINE_INPUT(X_AXIS_POS, 0, "Move right") \
 
     // Jet Force Gemini's modern control scheme (src/jfg/controls). Used instead of the N64 buttons when it is on.
     #define DEFINE_JFG_MODERN_INPUTS() \
-        DEFINE_INPUT(JFG_FIRE, 0, "Fire (Modern)") \
-        DEFINE_INPUT(JFG_AIM, 0, "Aim (Modern)") \
-        DEFINE_INPUT(JFG_JUMP, 0, "Jump (Modern)") \
-        DEFINE_INPUT(JFG_CROUCH, 0, "Crouch/Roll (Modern)") \
-        DEFINE_INPUT(JFG_WEAPON_PREV, 0, "Previous weapon (Modern)") \
-        DEFINE_INPUT(JFG_WEAPON_NEXT, 0, "Next weapon (Modern)") \
-        DEFINE_INPUT(JFG_QUICK_1, 0, "Quick weapon 1 (Modern)") \
-        DEFINE_INPUT(JFG_QUICK_2, 0, "Quick weapon 2 (Modern)") \
-        DEFINE_INPUT(JFG_QUICK_3, 0, "Quick weapon 3 (Modern)") \
-        DEFINE_INPUT(JFG_QUICK_4, 0, "Quick weapon 4 (Modern)") \
-        DEFINE_INPUT(JFG_C_LEFT, 0, "Strafe left / C-left (Modern)") \
-        DEFINE_INPUT(JFG_C_RIGHT, 0, "Strafe right / C-right (Modern)") \
-        DEFINE_INPUT(JFG_L, 0, "L button (Modern)") \
-        DEFINE_INPUT(JFG_LOOK_LEFT, 0, "Look left (Modern)") \
-        DEFINE_INPUT(JFG_LOOK_RIGHT, 0, "Look right (Modern)") \
-        DEFINE_INPUT(JFG_LOOK_UP, 0, "Look up (Modern)") \
-        DEFINE_INPUT(JFG_LOOK_DOWN, 0, "Look down (Modern)")
+        DEFINE_INPUT(JFG_FIRE, 0, "Fire") \
+        DEFINE_INPUT(JFG_AIM, 0, "Aim") \
+        DEFINE_INPUT(JFG_JUMP, 0, "Jump") \
+        DEFINE_INPUT(JFG_CROUCH, 0, "Crouch / Roll") \
+        DEFINE_INPUT(JFG_WEAPON_PREV, 0, "Previous weapon") \
+        DEFINE_INPUT(JFG_WEAPON_NEXT, 0, "Next weapon") \
+        DEFINE_INPUT(JFG_QUICK_1, 0, "Quick weapon 1") \
+        DEFINE_INPUT(JFG_QUICK_2, 0, "Quick weapon 2") \
+        DEFINE_INPUT(JFG_QUICK_3, 0, "Quick weapon 3") \
+        DEFINE_INPUT(JFG_QUICK_4, 0, "Quick weapon 4") \
+        DEFINE_INPUT(JFG_C_LEFT, 0, "Strafe left") \
+        DEFINE_INPUT(JFG_C_RIGHT, 0, "Strafe right") \
+        DEFINE_INPUT(JFG_L, 0, "L button") \
+        DEFINE_INPUT(JFG_LOOK_LEFT, 0, "Look left") \
+        DEFINE_INPUT(JFG_LOOK_RIGHT, 0, "Look right") \
+        DEFINE_INPUT(JFG_LOOK_UP, 0, "Look up") \
+        DEFINE_INPUT(JFG_LOOK_DOWN, 0, "Look down")
 
     #define DEFINE_RECOMP_UI_INPUTS() \
         DEFINE_INPUT(TOGGLE_MENU, 0, "Toggle Menu") \

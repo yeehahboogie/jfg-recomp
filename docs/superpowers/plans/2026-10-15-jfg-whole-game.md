@@ -86,6 +86,12 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- **Menus cleaned of Zelda64Recomp leftovers (2026-10-15).**
+  - **Removed (nothing in JFG reads them):** Targeting Mode, Gyro Sensitivity, Autosaving, Aiming Camera Mode, Analog Camera, Analog Camera Mode, Background Music Volume, Low Health Beeps, HUD Placement, and the hidden Debug tab (Zelda scene warp, Majora's Mask clock).
+  - **Controls tab:** shows only what the active scheme reads, with N64 buttons named as buttons (JFG's own Normal/Expert mode changes what they do).
+  - **Kept:** the Mods tab (the general recomp mod loader).
+  - **Possible enhancement:** a real HUD Placement for JFG (move the HUD to the screen edges in widescreen). RT64's option only moves draws made with its extended commands, which JFG's display lists don't use.
+
 - **Sound turned into loud static, intermittently, sometimes until the game closed: fixed in the frontend.**
   - **Cause:** when SDL already held too much sound, the frontend dropped samples by dividing the chunk's byte count by 2^skip without rounding to whole frames. JFG's converted chunks are an odd number of frames (1605 at 48 kHz), so it queued half-frames (6420 bytes) and, at skip 2, a quarter float (2406 bytes).
   - **Effect:** SDL and the sound server read the queue as one stream of frames, so everything after a misaligned chunk played as floats read a few bytes off: full-scale static. It recovered only when another odd chunk happened to shift the stream back.

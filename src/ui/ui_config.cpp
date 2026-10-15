@@ -718,6 +718,21 @@ public:
 
         constructor.BindFunc("input_count", [](Rml::Variant& out) { out = static_cast<uint64_t>(recomp::get_num_inputs()); } );
         constructor.BindFunc("input_device_is_keyboard", [](Rml::Variant& out) { out = cur_device == recomp::InputDevice::Keyboard; } );
+        constructor.BindFunc("modern_controls", [](Rml::Variant& out) { out = jfg::controls::settings().modern; } );
+
+        // input_shown(i, modern_controls): whether the active control scheme reads input i. The Modern scheme reads its
+        // own actions (JFG_*) instead of the N64 buttons; the Original scheme reads only the N64 buttons. Start, the
+        // movement stick and the menu inputs serve both. (modern_controls is an argument so the row re-evaluates when
+        // the scheme changes.)
+        constructor.RegisterTransformFunc("input_shown", [](const Rml::VariantList& inputs) {
+            const std::string& name = recomp::get_input_enum_name(static_cast<recomp::GameInput>(inputs.at(0).Get<size_t>()));
+            const bool modern = inputs.size() > 1 && inputs.at(1).Get<bool>();
+            const bool modern_action = name.rfind("JFG_", 0) == 0;
+            // The N64 buttons (A to D-pad left) come first in the enum, then the stick axes.
+            const size_t index = inputs.at(0).Get<size_t>();
+            const bool n64_button = index < static_cast<size_t>(recomp::GameInput::Y_AXIS_POS) && name != "START";
+            return Rml::Variant{modern ? !n64_button : !modern_action};
+        });
 
         constructor.RegisterTransformFunc("get_input_name", [](const Rml::VariantList& inputs) {
             return Rml::Variant{recomp::get_input_name(static_cast<recomp::GameInput>(inputs.at(0).Get<size_t>()))};
@@ -920,6 +935,10 @@ public:
                 [field, on, name](const Rml::Variant& in) {
                     settings().*field = in.Get<std::string>() == on;
                     general_model_handle.DirtyVariable(name);
+                    // The Controls tab shows only the bindings the active scheme reads.
+                    if (field == &jfg::controls::Settings::modern && controls_model_handle) {
+                        controls_model_handle.DirtyVariable("modern_controls");
+                    }
                 });
         };
         radio("controls_scheme", &jfg::controls::Settings::modern, "Modern", "Original");
