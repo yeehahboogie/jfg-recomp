@@ -36,6 +36,36 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 | Level | Name | Status | Notes |
 |---|---|---|---|
 | 92 | Forest Day Landing | ok | Warp works (Vela); renders as before |
+| 53 | Dune | ok | |
+| 35 | CargoShip Dock | ok | |
+| 67 | AlphaSewer Lobby START | ok | Midge dialogue shows |
+| 16 | Cave 1 | ok | |
+| 21 | Forest First | ok | |
+| 43 | MilitaryBase Approach | ok | |
+| 23 | Alien Cave | ok | |
+| 28 | ast_Cave | ok | |
+| 29 | Canyon Lobby1 | ok | |
+| 61 | CargoSewer Lobby | ok | |
+| 113 | Termite level | ok | |
+| 115 | Swamp level | ok | |
+| 141 | Mizar Boss | **suspect** | White flat quads at the screen edges, void below, Vela in a T-pose. May be warp-only (scripted boss entry); needs the ares reference |
+| 155 | MizarPalace | ok | |
+| 179 | Mine Cave Entrance | **bug** | Gameplay pillarboxed to 4:3: a big 2D tint wedge trips the full-screen-2D detection |
+| 225 | Ice level | ok | |
+| 267 | Gem level | ok | |
+| 271 | Space Station | ok (no player) | Cutscene-like |
+| 308 | Pyramid Land | ok (no player) | Empty room, no HUD |
+| 311 | Dog Landing Pad | ok | |
+| 385 | EarthCityDark Scroll | ok (cutscene) | |
+| 170 | Jet Pack | ok | |
+| 175 | Tribal family | ok | |
+| 178 | Galaxians | ok | Minigame |
+| 375 | Arcade | ok | |
+| 161 | Multi Player Character Select | ok (no player) | |
 
 ## Open issues
+
+1. **Pillarbox on gameplay (179 Mine Cave Entrance).** The full-screen-2D rule (any affine batch whose bounding box covers the scissor) fires on a diagonal tint wedge. Gather triangle count and covered area for the title vignette vs the wedge (`JFG_DEBUG_PILLARBOX=1`), then tighten the rule.
+2. **141 Mizar Boss** looks wrong after a warp. Check a story-order arrival, or ares, before calling it a port bug.
+3. **ares no longer loads the ROM** (idle screen, no error, since 2026-10-14 20:00). Ruled out: flatpak file access (host), a leftover process, settings changes (only the virtual-pad bindings differ).
 
