@@ -14,8 +14,9 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
    - The game's own cheat flags (`allLevelCheat`, `allweaponsCheat`, `invulnerabilityCheat`) can open the ship's map.
 2. **Survey each level.** Warp there, let it run, screenshot, and look for crashes, `Failed to find function`, unregistered modules and rendering faults.
 3. **Fix** what the survey finds, one root cause at a time (systematic debugging), committing and pushing each fix to `base-port`.
-4. **Progression without gameplay skill.** In a warped level, put the player on each exit object (type 8) in turn. The game's own exit logic then changes level, and the log shows where each exit goes. Over all levels this builds the level graph and checks every transition. Exits that won't fire show which story flag they need.
-5. **Then story order:** saves across planets, bosses and the ending. The user plays with input recording for anything skill-bound.
+4. **Exit crawl (tool ready).** `JFG_TAKE_EXIT=<n>` (or survey job `LEVEL/n`), about 3 s into the level, sets the player's exit pointer to exit *n* (`pd+0xF4 = exit`, `pd+0x196 = −120`), as `exitControl` does for a player in range. The game's own transition code then changes level. Teleporting the player isn't enough, because objects outside the current region aren't updated. Result lines read `L/n ok exits=N last='playing level D'`. Example: 92/0 → 47 Forest Village (6 exits), 47/0 → 48.
+5. **Progression without gameplay skill.** In a warped level, put the player on each exit object (type 8) in turn. The game's own exit logic then changes level, and the log shows where each exit goes. Over all levels this builds the level graph and checks every transition. Exits that won't fire show which story flag they need.
+6. **Then story order:** saves across planets, bosses and the ending. The user plays with input recording for anything skill-bound.
 
 ## Addresses (main = `0x80000450 + offset`; data module 4093 = `0x800A0660 + offset`; bss 4095 = `0x800B0B50 + offset`)
 

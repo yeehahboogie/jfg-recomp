@@ -17,6 +17,15 @@ namespace {
 const char* const debug_env = std::getenv("JFG_DEBUG_LEVELS");
 const bool debug = debug_env != nullptr;
 const bool dump_names = debug && std::strcmp(debug_env, "names") == 0;
+// JFG_TAKE_EXIT=<n>: once the level has run for a few seconds, list its exits and hold the player on exit n, so the
+// game's own exit logic (exitControl 0x8002561C) changes level. Exits are objects with control type 8.
+const int take_exit = []() {
+    const char* v = std::getenv("JFG_TAKE_EXIT");
+    return (v != nullptr && *v != '\0') ? std::stoi(v) : -1; // empty = unset
+}();
+constexpr gpr obj_list = (gpr)(int32_t)0x800F2CA4;  // ObjList: pointer to an array of object pointers
+constexpr gpr obj_count = (gpr)(int32_t)0x800F2CA8;
+constexpr int16_t exit_control_type = 8;
 const std::optional<jfg::WarpSpec> warp = []() -> std::optional<jfg::WarpSpec> {
     const char* v = std::getenv("JFG_WARP");
     if (v == nullptr) return std::nullopt;
@@ -67,8 +76,64 @@ extern "C" void jfg_level_change(uint8_t* rdram, recomp_context* ctx) {
                  (uint32_t)MEM_W(0x10, sp), (uint32_t)MEM_W(0x14, sp), MEM_W(0, current_level), MEM_W(0, level_count));
 }
 
-// Called each frame for player 1 from the controlPlayer hook (src/jfg/controls/hooks.cpp).
+namespace {
+float read_f32(uint8_t* rdram, gpr base, int32_t offset) {
+    const uint32_t bits = (uint32_t)MEM_W(offset, base);
+    float f;
+    std::memcpy(&f, &bits, sizeof f);
+    return f;
+}
+
+void write_f32(uint8_t* rdram, gpr base, int32_t offset, float f) {
+    uint32_t bits;
+    std::memcpy(&bits, &f, sizeof bits);
+    MEM_W(offset, base) = (int32_t)bits;
+}
+
+// JFG_TAKE_EXIT, run each frame for player 1 (obj = the player's object).
+void exit_test_tick(uint8_t* rdram, gpr player) {
+    static int frames = 0;
+    static gpr target = 0;
+    static int32_t level = -1;   // the level the exit belongs to
+    static bool fired = false;
+    constexpr int settle_frames = 90; // let the level start (about 3 s)
+    if (take_exit < 0 || ++frames < settle_frames) return;
+    if (frames == settle_frames) {
+        const gpr list = (gpr)(int32_t)MEM_W(0, obj_list);
+        const int32_t count = MEM_W(0, obj_count);
+        int found = 0;
+        for (int32_t i = 0; i < count; i++) {
+            const gpr obj = (gpr)(int32_t)MEM_W(4 * i, list);
+            if (obj == 0 || (int16_t)MEM_H(0x48, obj) != exit_control_type) continue;
+            const gpr data = (gpr)(int32_t)MEM_W(0x68, obj);
+            std::fprintf(stderr, "[levels] exit %d: object %d at (%.1f, %.1f, %.1f) radius %d kind %d in level %d\n", found, i,
+                         read_f32(rdram, obj, 0x0C), read_f32(rdram, obj, 0x10), read_f32(rdram, obj, 0x14),
+                         data ? MEM_W(0x10, data) : -1, data ? (int16_t)MEM_H(0x14, data) : -1, MEM_W(0, current_level));
+            if (found == take_exit) {
+                target = obj;
+                level = MEM_W(0, current_level);
+            }
+            found++;
+        }
+        std::fprintf(stderr, "[levels] %d exits; taking exit %d%s\n", found, take_exit, target ? "" : " (none)");
+    }
+    // Once: the exit object belongs to its level, so never touch it after a level change.
+    if (target == 0 || fired || MEM_W(0, current_level) != level) return;
+    // Do what exitControl (0x8002561C) does for a player inside the exit's radius: point the player at the exit and
+    // start its countdown; the player's own code then performs the transition. (Moving the player there isn't enough:
+    // objects outside the player's current region aren't updated.)
+    const gpr pd = (gpr)(int32_t)MEM_W(0x68, player);
+    MEM_W(0xF4, pd) = (int32_t)(uint32_t)target;
+    MEM_B(0x196, pd) = -120;
+    fired = true;
+    std::fprintf(stderr, "[levels] exit %d triggered in level %d\n", take_exit, level);
+}
+}
+
+// Called each frame for player 1 from the controlPlayer hook (src/jfg/controls/hooks.cpp), at controlPlayer's entry
+// (a0 = the player's object).
 void jfg_level_tick(uint8_t* rdram, recomp_context* ctx) {
+    exit_test_tick(rdram, ctx->r4);
     static bool started = false; // first gameplay frame seen
     if (!started) {
         started = true;
