@@ -74,6 +74,9 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- **Full survey (383 levels), first 210 reviewed.** Suspects still to compare with ares when the machine is idle (the ares runs under survey load missed their menu timing): 62 CargoSewer End (near black, orange fragments), 68 AlphaSewer northhwest (white frame), 74 AlphaSewer Stairs (partly boxed), 120 Alien Cave Pyxis (black rectangle mid-screen), 166 seq part4 / 197 Canyon Multi / 199 Forest Intro (black). Test and "NOT USED" levels (83, 105, 109, 111, 137) look empty, which is expected.
+- **Widescreen polish: black screen corners in the ast levels (220, 224).** ares (4:3) shows the same scene with the corners covered by the level's backdrop; the wider view shows past it. Content limit, not a renderer fault; low priority.
+
 0. **Scripted menu presses use the wall clock**, so under load (parallel survey workers, ares) the game lags and presses miss: the warp never happens (`no-warp`). Fix: time `JFG_INPUT_SCRIPT` in game frames (joyRead count), then rerun all `no-warp` levels.
 1b. **45 BigShip Sequence crashes the port** after a warp (silent exit before 62 s). ares shows black but keeps running, so the scene doesn't work after a warp on real hardware either, but the port must not crash. Reproduce with a debugger once the survey is done.
 
