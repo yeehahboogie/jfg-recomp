@@ -85,7 +85,10 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 - **What's been run:** the survey ran every boss play level for 30 s without a crash.
 - **What a warp misses:** a warp into a play level skips the sequence that starts the fight. In 372 Vela fires at an empty arena.
   - So defeat paths (phase changes, deaths, end sequences) need story-order arrival or the user's playthrough.
-- **Soak test (running, `build/diag/survey/soak1`, 318 levels):** every playable level for about 2 minutes, moving, jumping, firing and switching weapons with `JFG_CHEATS=invuln,weapons`. Catches crashes and hangs in combat code that the idle survey never reached.
+- **Soak test: done (2026-10-16), clean.** All 318 playable levels got about 2 minutes of moving, jumping, rolling, firing and weapon switching with `JFG_CHEATS=invuln,weapons` (`scripts/soak-batch.sh`, results in `build/diag/survey/soak1`). There was no game crash or hang.
+  - **49:** failed once to open its window on the virtual display; passed on rerun.
+  - **47 and 411:** merged into a bogus job "41147" (a missing newline in the job list) and crashed on the invalid warp; both passed when run separately.
+  - **67 and 297:** the screenshots looked stuck on Midge's first dialogue page because the script's A presses were too sparse. With A every 2 s, his conversation runs through every page, hands over the item, and play resumes.
 
 ## Open issues
 
