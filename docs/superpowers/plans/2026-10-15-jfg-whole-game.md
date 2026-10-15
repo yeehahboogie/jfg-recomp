@@ -14,7 +14,8 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
    - The game's own cheat flags (`allLevelCheat`, `allweaponsCheat`, `invulnerabilityCheat`) can open the ship's map.
 2. **Survey each level.** Warp there, let it run, screenshot, and look for crashes, `Failed to find function`, unregistered modules and rendering faults.
 3. **Fix** what the survey finds, one root cause at a time (systematic debugging), committing and pushing each fix to `base-port`.
-4. **Then a real playthrough order:** story progression, saves across planets, bosses, ending.
+4. **Progression without gameplay skill.** In a warped level, put the player on each exit object (type 8) in turn. The game's own exit logic then changes level, and the log shows where each exit goes. Over all levels this builds the level graph and checks every transition. Exits that won't fire show which story flag they need.
+5. **Then story order:** saves across planets, bosses and the ending. The user plays with input recording for anything skill-bound.
 
 ## Addresses (main = `0x80000450 + offset`; data module 4093 = `0x800A0660 + offset`; bss 4095 = `0x800B0B50 + offset`)
 
@@ -28,6 +29,12 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 | `allLevelCheat` / `invulnerabilityCheat` / `allweaponsCheat` | `0x800A5068` / `0x800A5070` / `0x800A5078` |
 | Map screen (calls `mainChangeLevel(level, entry, 0, 0x10, …)`) | `frontMap` `m009_00690` |
 | Symbol dump | `python3 build/diag/syms.py` (reads the ROM's own table) |
+| Object list: `ObjList` (pointer array), count | `*0x800F2CA4`, `*0x800F2CA8` (`objGetObject(i)` `0x80005E58`) |
+| Object fields | `+0x0C/+0x10/+0x14` position, `+0x40` objdef, `+0x48` control type (s16), `+0x68` per-type data |
+| Control dispatcher | `0x8000FBF0`: jump table `0x800AB24C[type − 2]` |
+| **Exits** | Control type **8**, `exitControl` `0x8002561C`; data `+0x10` radius, `+0x14` exit kind (flag gate via table `0x800A1120`, checked by `0x80047ED0`). A player in range gets `pd+0xF4 = exit`, `pd+0x196 = −120`, and then changes level itself |
+| Doors | `doorControl` `0x80025A08`, `doorUnlock` `0x8002662C`, `exitInit` module 136 |
+| Game flags | `mainGetGameFlag` `0x80047ED0`, `mainSetGameFlag` `0x80047EFC` |
 
 ## Levels
 
