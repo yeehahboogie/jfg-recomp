@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <cinttypes>
 #include <chrono>
+#include <cmath>
 #include <thread>
 
 #include "nfd.h"
@@ -39,6 +40,7 @@
 #include "recomp_data.h"
 #include "jfg_overlays.hpp"
 #include "jfg_hooks.h"
+#include "jfg_audio_queue.h"
 #include "jfg_crash_handler.h"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
@@ -268,24 +270,42 @@ void queue_samples(int16_t* audio_data, size_t sample_count) {
         throw std::runtime_error("Error using SDL audio converter");
     }
 
-    uint64_t cur_queued_microseconds = uint64_t(SDL_GetQueuedAudioSize(audio_device)) / bytes_per_frame * 1000000 / sample_rate;
-    uint32_t num_bytes_to_queue = audio_convert.len_cvt - output_channels * discarded_output_frames * sizeof(swap_buffer[0]);
-    float* samples_to_queue = swap_buffer.data() + output_channels * discarded_output_frames / 2;
-
-    // Prevent audio latency from building up by skipping samples in incoming audio when too many samples are already queued.
-    // Skip samples based on how many microseconds of samples are queued already.
-    uint32_t skip_factor = cur_queued_microseconds / 100000;
-    if (skip_factor != 0) {
-        uint32_t skip_ratio = 1 << skip_factor;
-        num_bytes_to_queue /= skip_ratio;
-        for (size_t i = 0; i < num_bytes_to_queue / (output_channels * sizeof(swap_buffer[0])); i++) {
-            samples_to_queue[2 * i + 0] = samples_to_queue[2 * skip_ratio * i + 0];
-            samples_to_queue[2 * i + 1] = samples_to_queue[2 * skip_ratio * i + 1];
+    // Queue whole frames only (jfg_audio_queue.h): SDL and the sound server read the queue as one stream of frames, and
+    // a chunk ending part-way through a frame shifts everything after it into static. Half the padding frames are at
+    // the start of the buffer and half at the end. When too much is already queued, keep only every skip_ratio-th
+    // frame so latency doesn't build up.
+    const uint32_t queued_bytes = SDL_GetQueuedAudioSize(audio_device);
+    const jfg::QueuePlan plan = jfg::plan_queue(audio_convert.len_cvt, discarded_output_frames, queued_bytes,
+                                                output_channels, output_sample_rate);
+    float* samples_to_queue = swap_buffer.data() + output_channels * plan.first_frame;
+    if (plan.skip_ratio != 1) {
+        for (size_t i = 0; i < plan.frames; i++) {
+            for (size_t c = 0; c < output_channels; c++) {
+                samples_to_queue[output_channels * i + c] = samples_to_queue[output_channels * plan.skip_ratio * i + c];
+            }
         }
     }
+    const uint32_t num_bytes_to_queue = plan.frames * output_channels * sizeof(swap_buffer[0]);
 
-    // Queue the swapped audio data.
-    // Offset the data start by only half the discarded frame count as the other half of the discarded frames are at the end of the buffer.
+    // Development aid: JFG_DEBUG_AUDIO_QUEUE=<file> logs every queued chunk (input samples, SDL queue before, skip
+    // ratio, bytes queued, peak and non-finite output values).
+    static FILE* queue_log = []() -> FILE* {
+        const char* path = std::getenv("JFG_DEBUG_AUDIO_QUEUE");
+        return path != nullptr ? std::fopen(path, "w") : nullptr;
+    }();
+    if (queue_log != nullptr) {
+        static const auto start = std::chrono::steady_clock::now();
+        static bool header = (std::fprintf(queue_log, "driver %s\n", SDL_GetCurrentAudioDriver()), true);
+        float peak = 0.0f; int bad = 0;
+        for (size_t i = 0; i < num_bytes_to_queue / sizeof(float); i++) {
+            const float v = samples_to_queue[i];
+            if (!std::isfinite(v)) bad++; else peak = std::max(peak, std::fabs(v));
+        }
+        std::fprintf(queue_log, "%.3f in %zu queued %u skip %u bytes %u peak %.3f bad %d\n",
+                     std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count(), sample_count,
+                     queued_bytes, plan.skip_ratio, num_bytes_to_queue, peak, bad);
+    }
+
     SDL_QueueAudio(audio_device, samples_to_queue, num_bytes_to_queue);
 }
 

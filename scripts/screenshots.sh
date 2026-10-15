@@ -9,7 +9,17 @@ out="$1"; shift
 # never open windows on the user's screen or take keyboard focus. JFG_ON_DESKTOP=1 runs on the real display instead.
 # JFG_XDISPLAY picks the virtual display number (default 99), so several runs can go in parallel.
 if [ "${JFG_ON_DESKTOP:-0}" != 1 ]; then
-  export SDL_AUDIODRIVER=dummy   # silent: test runs must not play sound on the user's desktop
+  # Silent: test runs must not play sound on the user's desktop. JFG_AUDIO_SINK=<sink> sends the sound to that
+  # (silent, null) sink instead, for recording the real output path (tools/diag/capture-audio.sh sets it).
+  # JFG_AUDIO_DISK=<file> uses SDL's disk driver instead: exactly what SDL's core hands its backend, as raw 32-bit
+  # float stereo at 48 kHz, bypassing the sound server.
+  if [ -n "${JFG_AUDIO_DISK:-}" ]; then
+    export SDL_AUDIODRIVER=disk SDL_DISKAUDIOFILE="$JFG_AUDIO_DISK"
+  elif [ -n "${JFG_AUDIO_SINK:-}" ]; then
+    export SDL_AUDIODRIVER=pulseaudio PULSE_SINK="$JFG_AUDIO_SINK"
+  else
+    export SDL_AUDIODRIVER=dummy
+  fi
   xd=":${JFG_XDISPLAY:-99}"
   export DISPLAY="$xd"
   unset WAYLAND_DISPLAY
@@ -22,7 +32,8 @@ times=("${@:-8 14 20 26 32 40}")
 read -r -a times <<< "${times[*]}"
 mkdir -p "$out"; rm -f "$out"/t*.png "$out"/sheet.png
 last=${times[-1]%.*}
-timeout -k 3 $((last + 6)) env JFG_AUTOSTART=1 JFG_NO_VSYNC="${JFG_NO_VSYNC:-1}" build/JFGRecompiled > "$out/run.log" 2>&1 &
+# JFG_BINARY runs another build of the port (e.g. a saved copy, for A/B comparisons).
+timeout -k 3 $((last + 6)) env JFG_AUTOSTART=1 JFG_NO_VSYNC="${JFG_NO_VSYNC:-1}" "${JFG_BINARY:-build/JFGRecompiled}" > "$out/run.log" 2>&1 &
 pid=$!
 wid=""
 for _ in $(seq 50); do

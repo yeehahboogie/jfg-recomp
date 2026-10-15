@@ -145,6 +145,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/level_tools.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/level_hooks.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/crash_handler.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/audio_queue.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/gate.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/hooks.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/settings.cpp

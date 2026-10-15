@@ -75,6 +75,16 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- **Sound turned into loud static, intermittently, sometimes until the game closed: fixed in the frontend.**
+  - **Cause:** when SDL already held too much sound, the frontend dropped samples by dividing the chunk's byte count by 2^skip without rounding to whole frames. JFG's converted chunks are an odd number of frames (1605 at 48 kHz), so it queued half-frames (6420 bytes) and, at skip 2, a quarter float (2406 bytes).
+  - **Effect:** SDL and the sound server read the queue as one stream of frames, so everything after a misaligned chunk played as floats read a few bytes off: full-scale static. It recovered only when another odd chunk happened to shift the stream back.
+  - **Load-dependent:** skipping only happens when the queue backs up, as on the user's machine while the exit crawl was running. The queue estimate also used the game's 22020 Hz instead of the 48 kHz output rate, so skipping started at about 46 ms instead of 100 ms.
+  - **Fix:** `jfg::plan_queue` (`src/jfg/audio_queue.cpp`, tested) always queues whole frames, measures the queue at the output rate, and caps the ratio at 32.
+  - **Found by:** the game's sound (`JFG_AUDIO_DUMP`) was clean while the output recorded by `tools/diag/capture-audio.sh` had the static, and `JFG_DEBUG_AUDIO_QUEUE` showed the odd byte counts.
+  - **Evidence:** static appeared only in unfixed runs whose queue backed up (2 of 2, plus the user's session under the crawl's load). Unfixed runs that never skipped had none (0 of 6). Fixed runs skipping heavily (2,950 and 5,326 chunks) had none.
+  - **Worker 0:** static appeared only while the stream was two bytes off a float (18–19% of those windows, 0% when aligned).
+  - **Caveat:** one unfixed reproduction also had short bursts while aligned, unexplained, possibly an artifact of recording four games at once. Recheck if static is reported again.
+
 - **Static burst at the character-select teleport (and when a Tribal beams away): the original does it too, not a bug.**
   - The game plays a loud noise sample on four voices, with ADPCM book `0x18CD18` (a near-zero predictor, scale 12).
   - ares, recorded over the same route with `tools/diag/ares-audio.sh`, has the same burst at the same moment and loudness: 250.9–252.5 s, RMS 0.40, against the port's 250.1–251.7 s, RMS 0.43.

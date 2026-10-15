@@ -31,3 +31,5 @@ build/aim_move_test
 build/level_tools_test
 "$CXX" -std=c++20 -Wall -g -Iinclude src/jfg/crash_handler.cpp tests/crash_handler_test.cpp -o build/crash_handler_test
 build/crash_handler_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/audio_queue.cpp tests/audio_queue_test.cpp -o build/audio_queue_test
+build/audio_queue_test
