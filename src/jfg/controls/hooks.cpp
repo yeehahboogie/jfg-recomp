@@ -14,6 +14,8 @@
 #include "aim_move.h"
 #include "recomp_input.h"
 
+void jfg_level_tick(uint8_t* rdram, recomp_context* ctx); // src/jfg/level_hooks.cpp
+
 namespace {
 const bool debug = std::getenv("JFG_DEBUG_CONTROLS") != nullptr;
 constexpr gpr disablejoy = (gpr)(int32_t)0x800F6DBC; // tested first by controlReadJoypad (0x80037250)
@@ -107,6 +109,7 @@ extern "C" void jfg_controls_begin_player(uint8_t* rdram, recomp_context* ctx) {
         jfg::controls::g_frame = {jfg::controls::modern_applies(v, scheme_modern()), pd, (uint32_t)obj, 0,
                                   !v.input_disabled};
         if (jfg::controls::g_frame.active) jfg::controls::mark_modern_active();
+        jfg_level_tick(rdram, ctx);
     }
 }
 

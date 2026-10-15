@@ -6,7 +6,7 @@ entrypoint = 0x80000400
 elf_path = "@GENERATED@/jfg.elf"
 output_func_path = "@GENERATED@/funcs"
 relocatable_sections_path = "@GENERATED@/relocatable_sections.txt"
-recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\""
+recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\"\n#include \"jfg_level_hooks.h\""
 functions_per_output_file = 50
 
 [patches]
@@ -138,3 +138,8 @@ text = "jfg_aim_move(rdram, ctx);"
 [[patches.hook]]
 func = "m017_04C50"             # Lupus: animation select
 text = "jfg_aim_move(rdram, ctx);"
+
+# Level survey aids (docs/superpowers/plans/2026-10-15-jfg-whole-game.md)
+[[patches.hook]]
+func = "func_8004665C"          # mainChangeLevel(level, ...)
+text = "jfg_level_change(rdram, ctx);"
