@@ -101,7 +101,12 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
   - **Fix:** with `copyWithGPU` off, the data goes through RDRAM as on the hardware. All six match ares, still at 30 fps.
   - **Debugging:** `JFG_DEBUG_FBTEX=1` logs framebuffer-as-texture reads.
 
-- **Full survey (383 levels), first 210 reviewed.** Suspects still to compare with ares when the machine is idle (the ares runs under survey load missed their menu timing): 62 CargoSewer End (near black, orange fragments), 68 AlphaSewer northhwest (white frame), 74 AlphaSewer Stairs (partly boxed), 120 Alien Cave Pyxis (black rectangle mid-screen), 166 seq part4 / 197 Canyon Multi / 199 Forest Intro (black). Test and "NOT USED" levels (83, 105, 109, 111, 137) look empty, which is expected.
+- **Survey suspects, all compared with ares (warped to the same level):**
+  - **Fixed** by the frame-copy change (`copyWithGPU = false`): 62 CargoSewer End, 68 AlphaSewer northwest, 120 Alien Cave Pyxis, 166 seq part4, 199 Forest Intro.
+  - **74 AlphaSewer Stairs** matches ares: the "box" is a wall in the scene.
+  - **197 Canyon Multi** is a multiplayer arena warped into a one-player game, an invalid state in both: ares white with no HUD, the port black with the HUD. Check it through the multiplayer menu.
+  - **Black cutscenes after a warp (240, 253, 325, 345, 378, 380)** are black in ares too, after a confirmed warp. They need the state their normal arrival sets up; check them in story order.
+  - Test and "NOT USED" levels (83, 105, 109, 111, 137) look empty, which is expected.
 - **Widescreen polish: black screen corners in the ast levels (220, 224).** ares (4:3) shows the same scene with the corners covered by the level's backdrop; the wider view shows past it. Content limit, not a renderer fault; low priority.
 
 0. ~~Scripted menu presses use the wall clock~~: fixed. `JFG_INPUT_CLOCK=frames:30` (the survey default) counts controller reads. All seven `no-warp` levels (89 133 243 245 246 254 270) passed on rerun under five-worker load.
