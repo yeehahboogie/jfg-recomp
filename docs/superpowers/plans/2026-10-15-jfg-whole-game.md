@@ -3,6 +3,32 @@
 Goal (user, 2026-10-15): the definition of done is the **entire game**, start to finish, not just Goldwood
 (base-port spec §7 stopped at Goldwood). This file is the loop's state: what's known, what's checked, what's broken.
 
+## Status (2026-10-16)
+
+**Automated coverage done.** All of it is in this tracker and `build/diag/`.
+
+| Area | Result |
+|---|---|
+| Every level loads | 412 surveyed (warp + 30 s). Warp artefacts and test levels are noted below. |
+| Every exit | Each exit of every playable level was taken through the game's own transition. One quit fixed (runtime patch 0004). |
+| Combat | 318 playable levels got 2 minutes each of firing, moving and weapon switching. No crashes or hangs. |
+| Story intro and Goldwood start | Plays from a new game through Magnus's conversation. |
+| Saves | Existing game files load. |
+| Sound | Static fixed (whole-frame queueing). The teleport noise matches ares. |
+| Multiplayer | Players 2–4 (Extra Players) work. Target Range and battle mode split screen run (runtime patch 0005, RT64 split-screen fix). |
+| Credits | 360 Disco Credits renders. |
+
+**Left for a playthrough in story order:**
+- Story-event cutscenes that a warp can't set up (240, 253, 345, 378, 380).
+- Boss defeats and their end sequences.
+- Reaching the ending naturally.
+- A second player as Floyd in story mode.
+- These need the user's play, or a late-game save from the user's own copy of the game.
+
+**Optional polish:**
+- A JFG HUD Placement option (widescreen HUD at the edges).
+- The asteroid levels' widescreen corners.
+
 ## Method
 
 1. **Reach any level.** Use dev switches:
