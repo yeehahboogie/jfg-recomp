@@ -75,6 +75,10 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- ~~**Exit 7/0 (AlphaSewer eastpit → 11) quit the game**~~: fixed, runtime patch 0004.
+  - **Cause:** `unload_overlays` treated a loaded section that starts exactly where the unloaded module ends as overlapping (`>=`). It reported "Cannot partially unload section" and called `exit()`, and the exit then crashed in RmlUi's static destructors.
+  - **Why it matters beyond the crawl:** this affects any level change that unloads a module sitting right before another one in RAM, so normal play hits it too.
+
 - ~~**Black rectangle mid-screen** (120 Alien Cave Pyxis, 248/263/269 MilitaryBase, 275 Space Station landing, 258 Multi Race)~~: fixed.
   - **What the game does:** it renders an effect into a 64×64 8-bit intensity buffer (`0x346780`), then samples it as an IA8 texture.
   - **What went wrong:** RT64's GPU tile-copy path drew that texture as an opaque black rectangle.
