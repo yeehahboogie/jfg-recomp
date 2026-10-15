@@ -945,6 +945,7 @@ public:
         radio("controls_invert_mouse", &jfg::controls::Settings::invert_mouse_y, "On", "Off");
         radio("controls_invert_stick", &jfg::controls::Settings::invert_stick_y, "On", "Off");
         radio("controls_aim_button", &jfg::controls::Settings::aim_toggle, "Toggle", "Hold");
+        radio("controls_extra_players", &jfg::controls::Settings::extra_players, "On", "Off");
 
         // Drift-back delay in tenths of a second; 0 means off (stored as -1).
         constructor.BindFunc("controls_drift",

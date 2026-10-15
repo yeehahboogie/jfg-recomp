@@ -1,6 +1,9 @@
 #include "../jfg/controls/gate.h"
 #include "../jfg/controls/settings.h"
+#include "jfg_players.h"
+#include <algorithm>
 #include <atomic>
+#include <span>
 #include <mutex>
 
 #include "ultramodern/ultramodern.hpp"
@@ -75,6 +78,26 @@ recomp::InputField recomp::get_scanned_input() {
     recomp::InputField ret = scanned_input.load();
     scanned_input.store({});
     return ret;
+}
+
+// The N64 controller port (player) whose input is being read on this thread; see recomp::InputPlayerScope.
+static thread_local int input_player = 0;
+
+recomp::InputPlayerScope::InputPlayerScope(int player) : previous(input_player) { input_player = player; }
+recomp::InputPlayerScope::~InputPlayerScope() { input_player = previous; }
+
+// The gamepads the current player reads (jfg_players.h). Call with cur_controllers_mutex held.
+static std::span<SDL_GameController* const> player_controllers() {
+    const auto& all = InputState.cur_controllers;
+    const int pad = jfg::pad_for_player(input_player, (int)all.size(), jfg::controls::settings().extra_players);
+    if (pad == jfg::all_pads) return {all.data(), all.size()};
+    if (pad == jfg::no_pad) return {};
+    return {all.data() + pad, 1};
+}
+
+int recomp::get_controller_count() {
+    std::lock_guard lock{ InputState.cur_controllers_mutex };
+    return (int)InputState.cur_controllers.size();
 }
 
 void recomp::start_scanning_input(recomp::InputDevice device) {
@@ -590,12 +613,16 @@ void recomp::poll_inputs() {
         std::lock_guard lock{ InputState.cur_controllers_mutex };
         InputState.cur_controllers.clear();
 
+        // In connection order (joystick instance IDs only grow), so gamepad n is always the same player.
+        std::vector<std::pair<SDL_JoystickID, SDL_GameController*>> ordered;
         for (const auto& [id, state] : InputState.controller_states) {
-            (void)id; // Avoid unused variable warning.
-            SDL_GameController* controller = state.controller;
-            if (controller != nullptr) {
-                InputState.cur_controllers.push_back(controller);
+            if (state.controller != nullptr) {
+                ordered.emplace_back(id, state.controller);
             }
+        }
+        std::sort(ordered.begin(), ordered.end());
+        for (const auto& [id, controller] : ordered) {
+            InputState.cur_controllers.push_back(controller);
         }
     }
 
@@ -641,12 +668,15 @@ void recomp::set_rumble(int controller_num, bool on) {
 }
 
 ultramodern::input::connected_device_info_t recomp::get_connected_device_info(int controller_num) {
-    switch (controller_num) {
-        case 0:
-            return ultramodern::input::connected_device_info_t {
-                .connected_device = ultramodern::input::Device::Controller,
-                .connected_pak = ultramodern::input::Pak::RumblePak,
-            };
+    // Development aid: JFG_FAKE_PLAYERS=<n> reports players 1..n connected without gamepads (player 2 can be driven by
+    // JFG_INPUT_SCRIPT_P2), for testing multiplayer.
+    static const int fake_players = []() { const char* v = std::getenv("JFG_FAKE_PLAYERS"); return v ? std::atoi(v) : 0; }();
+    if (controller_num < fake_players ||
+        jfg::player_connected(controller_num, recomp::get_controller_count(), jfg::controls::settings().extra_players)) {
+        return ultramodern::input::connected_device_info_t {
+            .connected_device = ultramodern::input::Device::Controller,
+            .connected_pak = ultramodern::input::Pak::RumblePak,
+        };
     }
 
     return ultramodern::input::connected_device_info_t {
@@ -676,8 +706,10 @@ void recomp::update_rumble() {
     uint16_t rumble_strength = smooth_rumble * (recomp::get_rumble_strength() * 0xFFFF / 100);
     uint32_t duration = 1000000; // Dummy duration value that lasts long enough to matter as the game will reset rumble on its own.
     {
+        // Rumble is player 1's (the only rumble the game drives here): with extra players on, only player 1's gamepad.
+        recomp::InputPlayerScope player_one(0);
         std::lock_guard lock{ InputState.cur_controllers_mutex };
-        for (const auto& controller : InputState.cur_controllers) {
+        for (const auto& controller : player_controllers()) {
             SDL_GameControllerRumble(controller, 0, rumble_strength, duration);
         }
     }
@@ -689,7 +721,7 @@ bool controller_button_state(int32_t input_id) {
         bool ret = false;
         {
             std::lock_guard lock{ InputState.cur_controllers_mutex };
-            for (const auto& controller : InputState.cur_controllers) {
+            for (const auto& controller : player_controllers()) {
                 ret |= SDL_GameControllerGetButton(controller, button);
             }
         }
@@ -709,7 +741,7 @@ float controller_axis_state(int32_t input_id, bool allow_suppression) {
 
         {
             std::lock_guard lock{ InputState.cur_controllers_mutex };
-            for (const auto& controller : InputState.cur_controllers) {
+            for (const auto& controller : player_controllers()) {
                 float cur_val = SDL_GameControllerGetAxis(controller, axis) * (1/32768.0f);
                 if (negative_range) {
                     cur_val = -cur_val;
@@ -744,6 +776,10 @@ static bool mouse_input_state(int32_t input_id) {
 }
 
 float recomp::get_input_analog(const recomp::InputField& field) {
+    // The keyboard and mouse belong to player 1.
+    if (input_player != 0 && ((InputType)field.input_type == InputType::Keyboard || (InputType)field.input_type == InputType::Mouse)) {
+        return 0.0f;
+    }
     switch ((InputType)field.input_type) {
     case InputType::Keyboard:
         if (InputState.keys && field.input_id >= 0 && field.input_id < InputState.numkeys) {
@@ -782,6 +818,10 @@ float recomp::get_input_analog_unsuppressed(const std::span<const recomp::InputF
 }
 
 bool recomp::get_input_digital(const recomp::InputField& field) {
+    // The keyboard and mouse belong to player 1.
+    if (input_player != 0 && ((InputType)field.input_type == InputType::Keyboard || (InputType)field.input_type == InputType::Mouse)) {
+        return false;
+    }
     switch ((InputType)field.input_type) {
     case InputType::Keyboard:
         if (InputState.keys && field.input_id >= 0 && field.input_id < InputState.numkeys) {

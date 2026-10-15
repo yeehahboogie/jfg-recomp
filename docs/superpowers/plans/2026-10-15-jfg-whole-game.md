@@ -92,6 +92,13 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- **Multiplayer: players 2–4 added (2026-10-16).**
+  - **Before:** the frontend reported only controller 1, so the MULTI modes (and a second player controlling Floyd) were unreachable.
+  - **The setting:** General → Extra Players (off by default, so duplicate or virtual pads can't make a phantom player). When on, gamepad *n* in connection order is player *n+1* with the N64 bindings. Player 1 keeps the first gamepad, the keyboard, the mouse and the Modern scheme. Pad assignment is in `jfg::pad_for_player` (tested).
+  - **Runtime bug fixed (patch 0005):** the controller-present bit pattern was assigned per controller instead of OR-ed. With two controllers only the last bit survived, and the game said "Controller 1 not present".
+  - **Verified with `JFG_FAKE_PLAYERS=2` and `JFG_INPUT_SCRIPT_P2`:** player 2 joins the multiplayer character select, the setup menu works, and a two-player Target Range match (level 364) runs. Battle-mode split screen not yet checked.
+- **Saves:** the existing game file loads ("Select Game" → "Play Game 1" lands in the character-select hub).
+
 - **Menus cleaned of Zelda64Recomp leftovers (2026-10-15).**
   - **Removed (nothing in JFG reads them):** Targeting Mode, Gyro Sensitivity, Autosaving, Aiming Camera Mode, Analog Camera, Analog Camera Mode, Background Music Volume, Low Health Beeps, HUD Placement, and the hidden Debug tab (Zelda scene warp, Majora's Mask clock).
   - **Controls tab:** shows only what the active scheme reads, with N64 buttons named as buttons (JFG's own Normal/Expert mode changes what they do).

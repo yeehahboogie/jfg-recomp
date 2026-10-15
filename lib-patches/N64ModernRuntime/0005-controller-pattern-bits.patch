@@ -1,0 +1,13 @@
+diff --git a/ultramodern/src/input.cpp b/ultramodern/src/input.cpp
+index 03a7c6b..b520fe7 100644
+--- a/ultramodern/src/input.cpp
++++ b/ultramodern/src/input.cpp
+@@ -71,7 +71,7 @@ static void __osContGetInitData(u8* pattern, OSContStatus *data) {
+             data[controller].status = device_info.connected_pak != ultramodern::input::Pak::None;
+             data[controller].err_no = 0x00;
+ 
+-            *pattern = 1 << controller;
++            *pattern |= 1 << controller; // one bit per present controller (assigning kept only the last one)
+         }
+         else {
+             // Mark controller as not connected

@@ -226,6 +226,18 @@ namespace recomp {
     void handle_events();
 
     ultramodern::input::connected_device_info_t get_connected_device_info(int controller_num);
+
+    // While alive, gamepad reads on this thread are for N64 controller port (player) `player`: with extra players on,
+    // only that player's gamepad, and the keyboard and mouse only for player 1 (jfg_players.h).
+    struct InputPlayerScope {
+        explicit InputPlayerScope(int player);
+        ~InputPlayerScope();
+        InputPlayerScope(const InputPlayerScope&) = delete;
+        InputPlayerScope& operator=(const InputPlayerScope&) = delete;
+    private:
+        int previous;
+    };
+    int get_controller_count();
     
     // Rumble strength ranges from 0 to 100.
     int get_rumble_strength();

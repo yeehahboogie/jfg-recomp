@@ -33,3 +33,5 @@ build/level_tools_test
 build/crash_handler_test
 "$CXX" -std=c++20 -Wall -Iinclude src/jfg/audio_queue.cpp tests/audio_queue_test.cpp -o build/audio_queue_test
 build/audio_queue_test
+"$CXX" -std=c++20 -Wall -Iinclude src/jfg/players.cpp tests/players_test.cpp -o build/players_test
+build/players_test

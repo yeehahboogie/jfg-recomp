@@ -1,4 +1,6 @@
+#include <algorithm>
 #include <array>
+#include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
@@ -123,13 +125,70 @@ static uint16_t modern_n64_buttons(bool* aim_out) {
     return jfg::controls::to_n64_buttons(a, aim);
 }
 
+// The input script clock (JFG_INPUT_SCRIPT), in scripted seconds: wall seconds since the first controller read by
+// default, or with JFG_INPUT_CLOCK=frames:<rate> the number of player 1 reads (one per game frame) divided by <rate>,
+// so presses land on the same game state even when the machine is busy and the game falls behind the wall clock.
+// count_read: this is a player 1 read (advances the frames clock).
+static double script_time(bool count_read) {
+    static const double frames_rate = []() {
+        const char* v = std::getenv("JFG_INPUT_CLOCK");
+        if (v == nullptr) return 0.0;
+        const std::string clock(v);
+        if (clock.rfind("frames:", 0) != 0) throw std::invalid_argument("JFG_INPUT_CLOCK: expected frames:<rate>, got '" + clock + "'");
+        return std::stod(clock.substr(7));
+    }();
+    static const auto script_start = std::chrono::steady_clock::now();
+    static std::atomic<uint64_t> reads = 0;
+    const uint64_t n = count_read ? ++reads : reads.load();
+    const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - script_start).count();
+    static const bool debug_clock = std::getenv("JFG_DEBUG_INPUT_CLOCK") != nullptr;
+    if (debug_clock && count_read && n % 120 == 0) {
+        std::fprintf(stderr, "[input] %llu reads at %.2f s (%.1f reads/s)\n", (unsigned long long)n, wall, n / wall);
+    }
+    return frames_rate > 0.0 ? n / frames_rate : wall;
+}
+
+// Players 2-4: the N64 buttons and stick from that player's own gamepad through the controller bindings, when the
+// port is connected (extra players on, or JFG_FAKE_PLAYERS). The Modern scheme is player 1's only.
+// Development aid: JFG_INPUT_SCRIPT_P2 scripts player 2 like JFG_INPUT_SCRIPT, on the same clock.
+static bool extra_player_input(int controller_num, uint16_t* buttons_out, float* x_out, float* y_out) {
+    if (recomp::get_connected_device_info(controller_num).connected_device == ultramodern::input::Device::None) {
+        return false;
+    }
+    recomp::InputPlayerScope player(controller_num);
+    uint16_t buttons = 0;
+    float x = 0.0f, y = 0.0f;
+    if (!recomp::game_input_disabled()) {
+        for (size_t i = 0; i < n64_button_values.size(); i++) {
+            const size_t input_index = (size_t)recomp::GameInput::N64_BUTTON_START + i;
+            buttons |= recomp::get_input_digital(controller_input_mappings[input_index]) ? n64_button_values[i] : 0;
+        }
+        x = recomp::get_input_analog(controller_input_mappings[(size_t)recomp::GameInput::X_AXIS_POS])
+          - recomp::get_input_analog(controller_input_mappings[(size_t)recomp::GameInput::X_AXIS_NEG]);
+        y = recomp::get_input_analog(controller_input_mappings[(size_t)recomp::GameInput::Y_AXIS_POS])
+          - recomp::get_input_analog(controller_input_mappings[(size_t)recomp::GameInput::Y_AXIS_NEG]);
+        recomp::apply_joystick_deadzone(x, y, &x, &y);
+    }
+    static const std::vector<jfg::InputEvent> p2_script = []() {
+        const char* script = std::getenv("JFG_INPUT_SCRIPT_P2");
+        return script != nullptr ? jfg::parse_input_script(script) : std::vector<jfg::InputEvent>{};
+    }();
+    if (controller_num == 1 && !p2_script.empty()) {
+        jfg::apply_input_script(p2_script, script_time(false), &buttons, &x, &y);
+    }
+    *buttons_out = buttons;
+    *x_out = std::clamp(x, -1.0f, 1.0f);
+    *y_out = std::clamp(y, -1.0f, 1.0f);
+    return true;
+}
+
 bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_out, float* y_out) {
     uint16_t cur_buttons = 0;
     float cur_x = 0.0f;
     float cur_y = 0.0f;
     
     if (controller_num != 0) {
-        return false;
+        return extra_player_input(controller_num, buttons_out, x_out, y_out);
     }
 
     // Development aid: JFG_CONTROLS_SCHEME_FLIP_AT=<seconds> flips Modern/Original once, that long after the first
@@ -196,26 +255,9 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
         const char* script = std::getenv("JFG_INPUT_SCRIPT");
         return script != nullptr ? jfg::parse_input_script(script) : std::vector<jfg::InputEvent>{};
     }();
+    // The clock runs from player 1's first read whether or not player 1 has a script, so player 2's can use it.
+    const double t = script_time(true);
     if (!input_script.empty()) {
-        // The script's clock: wall seconds by default. JFG_INPUT_CLOCK=frames:<rate> counts controller reads (one per
-        // game frame) instead, at <rate> reads per scripted second, so presses land on the same game state even when
-        // the machine is busy and the game falls behind the wall clock.
-        static const double frames_rate = []() {
-            const char* v = std::getenv("JFG_INPUT_CLOCK");
-            if (v == nullptr) return 0.0;
-            const std::string clock(v);
-            if (clock.rfind("frames:", 0) != 0) throw std::invalid_argument("JFG_INPUT_CLOCK: expected frames:<rate>, got '" + clock + "'");
-            return std::stod(clock.substr(7));
-        }();
-        static const auto script_start = std::chrono::steady_clock::now();
-        static uint64_t reads = 0;
-        reads++;
-        const double wall = std::chrono::duration<double>(std::chrono::steady_clock::now() - script_start).count();
-        double t = frames_rate > 0.0 ? reads / frames_rate : wall;
-        static const bool debug_clock = std::getenv("JFG_DEBUG_INPUT_CLOCK") != nullptr;
-        if (debug_clock && reads % 120 == 0) {
-            std::fprintf(stderr, "[input] %llu reads at %.2f s (%.1f reads/s)\n", (unsigned long long)reads, wall, reads / wall);
-        }
         jfg::apply_input_script(input_script, t, &cur_buttons, &cur_x, &cur_y, &modern_in.stick_look_x,
                                 &modern_in.stick_look_y, &modern_in.mouse_dx, &modern_in.mouse_dy);
     }

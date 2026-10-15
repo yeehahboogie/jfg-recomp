@@ -244,7 +244,7 @@
                                 data-checked="background_input_mode"
                                 value="On"
                                 id="bg_input_enabled"
-                                style="nav-up: #controls_aim_hold"
+                                style="nav-up: #controls_aim_hold; nav-down: #controls_extra_players_off"
                             />
                             <label class="config-option__tab-label" for="bg_input_enabled">On</label>
 
@@ -256,9 +256,38 @@
                                 data-checked="background_input_mode"
                                 value="Off"
                                 id="bg_input_disabled"
-                                style="nav-up: #controls_aim_toggle"
+                                style="nav-up: #controls_aim_toggle; nav-down: #controls_extra_players_on"
                             />
                             <label class="config-option__tab-label" for="bg_input_disabled">Off</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(17)">
+                        <label class="config-option__title">Extra Players</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(17)"
+                                name="controls_extra_players"
+                                data-checked="controls_extra_players"
+                                value="Off"
+                                id="controls_extra_players_off"
+                                style="nav-up: #bg_input_enabled"
+                            />
+                            <label class="config-option__tab-label" for="controls_extra_players_off">Off</label>
+
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(17)"
+                                name="controls_extra_players"
+                                data-checked="controls_extra_players"
+                                value="On"
+                                id="controls_extra_players_on"
+                                style="nav-up: #bg_input_disabled"
+                            />
+                            <label class="config-option__tab-label" for="controls_extra_players_on">On</label>
                         </div>
                     </div>
 
@@ -302,6 +331,11 @@
                     </p>
                     <p data-if="cur_config_index == 16">
                         <b>Hold</b>: aim while the aim button is held. <b>Toggle</b>: press once to aim, again to stop.
+                    </p>
+                    <p data-if="cur_config_index == 17">
+                        <b>On</b>: the second, third and fourth gamepads become players 2 to 4 (multiplayer, or a second player controlling Floyd), with the N64 controls. Player 1 keeps the first gamepad, the keyboard and the mouse.
+                        <br />
+                        <b>Off</b>: every gamepad controls player 1.
                     </p>
                 </div>
             </div>
