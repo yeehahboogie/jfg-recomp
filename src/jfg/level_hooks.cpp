@@ -130,10 +130,53 @@ void exit_test_tick(uint8_t* rdram, gpr player) {
 }
 }
 
+// JFG_DUMP_OBJECTS=<file>: every 15 frames, append every object to <file> for diffing (tools/diag/objdiff.py). Record:
+// "JFGO" frame level count, then per object: index, object address, 0x80 bytes of the object, data address
+// (object +0x68) and 0x100 bytes of its data block (zeros if none). Words are big-endian, as in N64 memory.
+static void dump_objects_tick(uint8_t* rdram) {
+    static FILE* out = []() -> FILE* {
+        const char* path = std::getenv("JFG_DUMP_OBJECTS");
+        return path != nullptr ? std::fopen(path, "wb") : nullptr;
+    }();
+    static uint32_t frame = 0;
+    if (out == nullptr || frame++ % 15 != 0) return;
+    auto put32 = [](uint32_t v) { const uint8_t b[4] = {uint8_t(v >> 24), uint8_t(v >> 16), uint8_t(v >> 8), uint8_t(v)};
+                                  std::fwrite(b, 1, 4, out); };
+    const gpr list = (gpr)(int32_t)MEM_W(0, obj_list);
+    const int32_t count = MEM_W(0, obj_count);
+    std::fwrite("JFGO", 1, 4, out);
+    put32(frame - 1); put32((uint32_t)MEM_W(0, current_level)); put32((uint32_t)count);
+    uint8_t bytes[0x100];
+    for (int32_t i = 0; i < count; i++) {
+        const gpr obj = (gpr)(int32_t)MEM_W(4 * i, list);
+        put32((uint32_t)i); put32((uint32_t)obj);
+        for (int k = 0; k < 0x80; k++) bytes[k] = obj ? MEM_BU(k, obj) : 0;
+        std::fwrite(bytes, 1, 0x80, out);
+        const gpr data = obj ? (gpr)(int32_t)MEM_W(0x68, obj) : 0;
+        const bool valid = (uint32_t)data >= 0x80000000u && (uint32_t)data < 0x80800000u;
+        put32(valid ? (uint32_t)data : 0);
+        for (int k = 0; k < 0x100; k++) bytes[k] = valid ? MEM_BU(k, data) : 0;
+        std::fwrite(bytes, 1, 0x100, out);
+    }
+    std::fflush(out);
+}
+
+// JFG_CHEATS=invuln,weapons[,levels]: switch on the game's own cheat flags every frame (invulnerabilityCheat,
+// allweaponsCheat, allLevelCheat), so scripted runs survive and have every weapon.
+static void cheats_tick(uint8_t* rdram) {
+    static const std::string cheats = []() { const char* v = std::getenv("JFG_CHEATS"); return std::string(v ? v : ""); }();
+    if (cheats.empty()) return;
+    if (cheats.find("invuln") != std::string::npos) MEM_W(0, (gpr)(int32_t)0x800A5070) = 1;
+    if (cheats.find("weapons") != std::string::npos) MEM_W(0, (gpr)(int32_t)0x800A5078) = 1;
+    if (cheats.find("levels") != std::string::npos) MEM_W(0, (gpr)(int32_t)0x800A5068) = 1;
+}
+
 // Called each frame for player 1 from the controlPlayer hook (src/jfg/controls/hooks.cpp), at controlPlayer's entry
 // (a0 = the player's object).
 void jfg_level_tick(uint8_t* rdram, recomp_context* ctx) {
     exit_test_tick(rdram, ctx->r4);
+    cheats_tick(rdram);
+    dump_objects_tick(rdram);
     static bool started = false; // first gameplay frame seen
     if (!started) {
         started = true;

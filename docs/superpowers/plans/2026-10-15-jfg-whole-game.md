@@ -73,6 +73,17 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 | 375 | Arcade | ok | |
 | 161 | Multi Player Character Select | ok (no player) | |
 
+## Bosses and the soak test
+
+- **Boss levels:**
+  - Forest 85, AlphaSewer 162, SlugBoss 371/372 → 370, Swamp 193–195/377 → 376, Alien 352/351 → 393, ast_Boss3 336 → 373.
+  - Mizar Boss 141; final Mizar Fight 387/386 → 388; Disco Credits 360.
+  - Code modules: Mizar 68, SlugBoss 149, WaterBoss 152, boy/dog/girl bosses 50–52.
+- **What's been run:** the survey ran every boss play level for 30 s without a crash.
+- **What a warp misses:** a warp into a play level skips the sequence that starts the fight. In 372 Vela fires at an empty arena.
+  - So defeat paths (phase changes, deaths, end sequences) need story-order arrival or the user's playthrough.
+- **Soak test (next, after the exit crawl):** every playable level for about 2 minutes, moving, jumping, firing and switching weapons with `JFG_CHEATS=invuln,weapons`. Catches crashes and hangs in combat code that the idle survey never reached.
+
 ## Open issues
 
 - **Sound turned into loud static, intermittently, sometimes until the game closed: fixed in the frontend.**
