@@ -74,6 +74,9 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+0. **Scripted menu presses use the wall clock**, so under load (parallel survey workers, ares) the game lags and presses miss: the warp never happens (`no-warp`). Fix: time `JFG_INPUT_SCRIPT` in game frames (joyRead count), then rerun all `no-warp` levels.
+1b. **45 BigShip Sequence crashes the port** after a warp (silent exit before 62 s). ares shows black but keeps running, so the scene doesn't work after a warp on real hardware either, but the port must not crash. Reproduce with a debugger once the survey is done.
+
 1. ~~Pillarbox on gameplay (179)~~: fixed. Full-screen 2D layers now count as a 4:3 frame only if they are screen-sized and textured or one colour (images, the vignette, fades), or oversized and untextured (iris wipes). Gradient tints and glow sprites no longer count.
 2. **ares on the desktop** shows its idle screen and never loads the ROM (since 2026-10-14 20:00). On the virtual display (`:99`, Mesa OpenGL) it loads and runs at 60 VPS, so the desktop failure is likely its NVIDIA video path.
    - `tools/diag/ares-shots.sh` runs ares there.
