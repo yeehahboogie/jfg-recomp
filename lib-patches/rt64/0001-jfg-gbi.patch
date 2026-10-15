@@ -575,7 +575,7 @@ index 8579695..fa9f0d7 100644
                      const bool useDownsampling = (colorTarget->downsampleMultiplier > 1);
                      if (useDownsampling) {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..0dd50e7 100644
+index ea0c1ac..d61bfe0 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -38,6 +38,20 @@ namespace RT64 {
@@ -599,7 +599,7 @@ index ea0c1ac..0dd50e7 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +394,219 @@ namespace RT64 {
+@@ -380,6 +394,233 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -747,7 +747,12 @@ index ea0c1ac..0dd50e7 100644
 +            const bool textured = ((maxS - minS) > 0.5f) || ((maxT - minT) > 0.5f);
 +            const bool screenSized = (minX >= left - marginX) && (maxX <= right + marginX) && (minY >= top - marginY) && (maxY <= bottom + marginY);
 +            const bool framesThe4x3 = screenSized ? (textured || uniformColor) : !textured;
-+            if ((right > left) && (bottom > top) && framesThe4x3 &&
++            // Only a scissor covering the whole framebuffer (4:3) is the screen. In split screen each player's view is
++            // scissored to part of it, and its full-view layers (fades) frame that view, not the 4:3 picture: taking
++            // them for the screen pillarboxed everything outside one player's view.
++            const float fbWidth = float(state->rdp->colorImage.width);
++            const bool scissorIsScreen = ((right - left) >= fbWidth * 0.95f) && ((bottom - top) >= fbWidth * 0.75f * 0.95f);
++            if ((right > left) && (bottom > top) && framesThe4x3 && scissorIsScreen &&
 +                (minX <= left + marginX) && (maxX >= right - marginX) && (minY <= top + marginY) && (maxY >= bottom - marginY))
 +            {
 +                static const bool debugPillarbox = getenv("JFG_DEBUG_PILLARBOX") != nullptr;
@@ -759,6 +764,15 @@ index ea0c1ac..0dd50e7 100644
 +                state->fullscreen2DWorkload = state->workloadCounter;
 +                state->fullscreen2DSeen = true;
 +                state->fullscreen2DRect = screen;
++            }
++            else if ((right > left) && (bottom > top) && framesThe4x3 && !scissorIsScreen &&
++                (minX <= left + marginX) && (maxX >= right - marginX) && (minY <= top + marginY) && (maxY >= bottom - marginY))
++            {
++                // A layer filling one player's split-screen view (each view gets a fade layer every frame): show the
++                // frame at 4:3 like the original, rather than stretching only the views that touch a screen edge.
++                state->fullscreen2DWorkload = state->workloadCounter;
++                state->fullscreen2DSeen = true;
++                state->fullscreen2DRect = FixedRect(0, 0, int32_t(fbWidth * 4.0f), int32_t(fbWidth * 0.75f * 4.0f));
 +            }
 +        }
 +    }

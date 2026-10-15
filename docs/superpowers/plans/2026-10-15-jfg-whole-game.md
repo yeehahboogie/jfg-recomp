@@ -96,7 +96,12 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
   - **Before:** the frontend reported only controller 1, so the MULTI modes (and a second player controlling Floyd) were unreachable.
   - **The setting:** General → Extra Players (off by default, so duplicate or virtual pads can't make a phantom player). When on, gamepad *n* in connection order is player *n+1* with the N64 bindings. Player 1 keeps the first gamepad, the keyboard, the mouse and the Modern scheme. Pad assignment is in `jfg::pad_for_player` (tested).
   - **Runtime bug fixed (patch 0005):** the controller-present bit pattern was assigned per controller instead of OR-ed. With two controllers only the last bit survived, and the game said "Controller 1 not present".
-  - **Verified with `JFG_FAKE_PLAYERS=2` and `JFG_INPUT_SCRIPT_P2`:** player 2 joins the multiplayer character select, the setup menu works, and a two-player Target Range match (level 364) runs. Battle-mode split screen not yet checked.
+  - **Verified with `JFG_FAKE_PLAYERS=2` and `JFG_INPUT_SCRIPT_P2`:** player 2 joins the multiplayer character select, the setup menu works, and a two-player Target Range match (level 364) runs.
+  - **Battle mode split screen (level 110) fixed:**
+    - **What went wrong:** player 1's half was black. My pillarbox rule took each player's per-view fade layer, full-screen within its half-screen scissor, for a full-screen 4:3 frame, so the presenter cropped to player 2's half.
+    - **Fix:** the rule now needs a scissor covering the framebuffer. Split-screen frames are shown at 4:3 with even bars, as the original; otherwise widescreen stretched only the view touching the left edge.
+    - **Single player unchanged:** the title vignette, cutscene letterbox and the mines' full width all look as before.
+    - **Viewports:** each player's viewport is screen-width with its centre moved (scale 160, centre 80 or 240), trimmed by the half-screen scissor. RT64 handles that correctly.
 - **Saves:** the existing game file loads ("Select Game" → "Play Game 1" lands in the character-select hub).
 
 - **Menus cleaned of Zelda64Recomp leftovers (2026-10-15).**
