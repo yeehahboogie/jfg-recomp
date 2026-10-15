@@ -89,3 +89,4 @@ cmake-build-*
 
 # Agent worktrees (Claude Code)
 /.claude/
+*.flash.bak

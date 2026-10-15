@@ -200,7 +200,31 @@ static uint32_t discarded_output_frames;
 
 constexpr uint32_t bytes_per_frame = input_channels * sizeof(float);
 
+// Development aid: JFG_AUDIO_DUMP=<file> appends every chunk the game produces (signed 16-bit stereo, the game's
+// sample rate, before resampling) to <file>; the rate is logged when it changes.
+static void dump_audio(const int16_t* audio_data, size_t sample_count) {
+    static FILE* dump = []() -> FILE* {
+        const char* path = std::getenv("JFG_AUDIO_DUMP");
+        return path != nullptr ? std::fopen(path, "wb") : nullptr;
+    }();
+    static uint32_t logged_rate = 0;
+    if (dump == nullptr) return;
+    if (logged_rate != sample_rate) {
+        logged_rate = sample_rate;
+        std::fprintf(stderr, "[audio] dump rate %u Hz from sample %ld\n", sample_rate, std::ftell(dump) / 2);
+    }
+    static FILE* index = [] () -> FILE* {
+        const std::string path = std::string(std::getenv("JFG_AUDIO_DUMP")) + ".index";
+        return std::fopen(path.c_str(), "w");
+    }();
+    static uint64_t chunk_no = 0;
+    if (index != nullptr) std::fprintf(index, "%llu %ld %zu\n", (unsigned long long)chunk_no++, std::ftell(dump) / 4, sample_count / 2);
+    std::fwrite(audio_data, sizeof(int16_t), sample_count, dump);
+    std::fflush(dump);
+}
+
 void queue_samples(int16_t* audio_data, size_t sample_count) {
+    dump_audio(audio_data, sample_count);
     // Buffer for holding the output of swapping the audio channels. This is reused across
     // calls to reduce runtime allocations.
     static std::vector<float> swap_buffer;
@@ -332,10 +356,62 @@ void reset_audio(uint32_t output_freq) {
 
 extern RspUcodeFunc aspMain;
 
+// Development aid: JFG_ALIST_LOG=<file> writes, for every audio task, its number and the opcodes of its command list
+// (count of each), to match against JFG_AUDIO_DUMP chunks when hunting audio faults.
+static const OSTask* current_audio_task = nullptr;
+static RspExitReason aspMain_logged(uint8_t* rdram, uint32_t ucode_addr) {
+    static FILE* log = []() -> FILE* {
+        const char* path = std::getenv("JFG_ALIST_LOG");
+        return path != nullptr ? std::fopen(path, "w") : nullptr;
+    }();
+    static uint64_t task_no = 0;
+    if (log != nullptr && current_audio_task != nullptr) {
+        const uint32_t list = (uint32_t)current_audio_task->t.data_ptr;
+        const uint32_t size = current_audio_task->t.data_size;
+        uint32_t counts[256] = {};
+        for (uint32_t off = 0; off + 8 <= size; off += 8) {
+            const uint32_t w0 = (uint32_t)MEM_W(off, (gpr)(int32_t)list);
+            counts[w0 >> 24]++;
+        }
+        std::fprintf(log, "%llu %u", (unsigned long long)task_no, size / 8);
+        for (int op = 0; op < 256; op++) {
+            if (counts[op]) std::fprintf(log, " %02X:%u", op, counts[op]);
+        }
+        std::fprintf(log, "\n");
+    }
+    // JFG_ALIST_DUMP=<task>: write RDRAM (8 MB) before and after that task and the next two, and the OSTask, to
+    // build/diag/audio/task<N>.{before,after,task}, to replay the task through a reference implementation.
+    static const long dump_from = []() {
+        const char* v = std::getenv("JFG_ALIST_DUMP");
+        return v != nullptr ? std::stol(v) : -1L;
+    }();
+    const bool dump = dump_from >= 0 && (long)task_no >= dump_from && (long)task_no < dump_from + 3;
+    auto write = [&](const char* ext, const void* data, size_t size) {
+        const std::string path = "build/diag/audio/task" + std::to_string(task_no) + "." + ext;
+        FILE* f = std::fopen(path.c_str(), "wb");
+        if (f == nullptr) { std::fprintf(stderr, "[audio] cannot write %s\n", path.c_str()); return; }
+        std::fwrite(data, 1, size, f);
+        std::fclose(f);
+    };
+    if (dump) {
+        write("task", current_audio_task, sizeof(OSTask));
+        write("before", rdram, 8 << 20);
+    }
+    const RspExitReason reason = aspMain(rdram, ucode_addr);
+    if (dump) {
+        write("after", rdram, 8 << 20);
+        std::fprintf(stderr, "[audio] dumped task %llu\n", (unsigned long long)task_no);
+    }
+    task_no++;
+    return reason;
+}
+
 RspUcodeFunc* get_rsp_microcode(const OSTask* task) {
     switch (task->t.type) {
     case M_AUDTASK:
-        return aspMain;  // JFG's audio microcode, recompiled by RSPRecomp (recomp/aspMain.jfg.toml)
+        current_audio_task = task;
+        // JFG's audio microcode, recompiled by RSPRecomp (recomp/aspMain.jfg.toml)
+        return std::getenv("JFG_ALIST_LOG") != nullptr || std::getenv("JFG_ALIST_DUMP") != nullptr ? aspMain_logged : aspMain;
 
     default:
         fprintf(stderr, "Unknown task: %" PRIu32 "\n", task->t.type);

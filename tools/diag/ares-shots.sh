@@ -33,6 +33,9 @@ sleep 0.5
 # No access to the desktop's sound server unless on the desktop: test runs must stay silent.
 mute=(--nosocket=pulseaudio --env=SDL_AUDIODRIVER=dummy --env=PULSE_SERVER=unix:/nonexistent)
 [ "${ARES_ON_DESKTOP:-0}" = 1 ] && mute=()
+# ARES_AUDIO_SINK=<sink>: let ares reach the sound server, aimed at that sink (used by tools/diag/ares-audio.sh, which
+# also moves the stream there, as stream-restore can override the request).
+[ -n "${ARES_AUDIO_SINK:-}" ] && mute=(--env=PULSE_SINK="$ARES_AUDIO_SINK")
 timeout -k 3 $((last + 10)) flatpak run --user "${mute[@]}" dev.ares.ares "$PWD/jfg.z64" > "$out/run.log" 2>&1 &
 emu=$!
 warper=""

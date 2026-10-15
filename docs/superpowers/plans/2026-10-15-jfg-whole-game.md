@@ -75,6 +75,12 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
+- **Static burst at the character-select teleport (and when a Tribal beams away): the original does it too, not a bug.**
+  - The game plays a loud noise sample on four voices, with ADPCM book `0x18CD18` (a near-zero predictor, scale 12).
+  - ares, recorded over the same route with `tools/diag/ares-audio.sh`, has the same burst at the same moment and loudness: 250.9–252.5 s, RMS 0.40, against the port's 250.1–251.7 s, RMS 0.43.
+  - The port's recompiled audio microcode decodes and resamples that voice bit-exactly against mupen64plus-rsp-hle's naudio_mp3, replaying a `JFG_ALIST_DUMP` task in isolation.
+  - The reference's envelope mixer doesn't model JFG's per-voice volume state, so it can't check mixing.
+
 - ~~**Exit 7/0 (AlphaSewer eastpit → 11) quit the game**~~: fixed, runtime patch 0004.
   - **Cause:** `unload_overlays` treated a loaded section that starts exactly where the unloaded module ends as overlapping (`>=`). It reported "Cannot partially unload section" and called `exit()`, and the exit then crashed in RmlUi's static destructors.
   - **Why it matters beyond the crawl:** this affects any level change that unloads a module sitting right before another one in RAM, so normal play hits it too.
