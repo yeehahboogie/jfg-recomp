@@ -52,7 +52,7 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 | 115 | Swamp level | ok | |
 | 141 | Mizar Boss | ok (warp artefact) | ares shows the same: white quad, void, T-pose. Warping into the scripted boss fight leaves it unset, so check in story order later |
 | 155 | MizarPalace | ok | |
-| 179 | Mine Cave Entrance | **bug** | Gameplay pillarboxed to 4:3: the level's full-screen 2D tint (a pink wedge, also in ares) trips the full-screen-2D detection |
+| 179 | Mine Cave Entrance | fixed | Was pillarboxed: the level's full-screen 2D tint (also in ares) and its lamps' huge glow sprites tripped the full-screen-2D detection. The rule now also considers texture and size (see `JFG_DEBUG_PILLARBOX`) |
 | 225 | Ice level | ok | |
 | 267 | Gem level | ok | |
 | 271 | Space Station | ok (no player) | Cutscene-like |
@@ -67,7 +67,7 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 
 ## Open issues
 
-1. **Pillarbox on gameplay (179 Mine Cave Entrance).** The full-screen-2D rule (any affine batch whose bounding box covers the scissor) fires on a diagonal tint wedge. Gather triangle count and covered area for the title vignette vs the wedge (`JFG_DEBUG_PILLARBOX=1`), then tighten the rule.
+1. ~~Pillarbox on gameplay (179)~~: fixed. Full-screen 2D layers now count as a 4:3 frame only if they are screen-sized and textured or one colour (images, the vignette, fades), or oversized and untextured (iris wipes). Gradient tints and glow sprites no longer count.
 2. **ares on the desktop** shows its idle screen and never loads the ROM (since 2026-10-14 20:00). On the virtual display (`:99`, Mesa OpenGL) it loads and runs at 60 VPS, so the desktop failure is likely its NVIDIA video path.
    - `tools/diag/ares-shots.sh` runs ares there.
    - `ARES_WARP=<level>[:<entry>]` sends ares's new game to any level, like the port's `JFG_WARP`. It uses `tools/diag/ares-warp.py` over ares's GDB server, which is enabled only for the run and verified off afterwards.

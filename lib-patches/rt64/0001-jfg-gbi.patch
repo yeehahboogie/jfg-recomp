@@ -559,7 +559,7 @@ index 8579695..fa9f0d7 100644
                      const bool useDownsampling = (colorTarget->downsampleMultiplier > 1);
                      if (useDownsampling) {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..6eba7ad 100644
+index ea0c1ac..0dd50e7 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -38,6 +38,20 @@ namespace RT64 {
@@ -583,7 +583,7 @@ index ea0c1ac..6eba7ad 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +394,186 @@ namespace RT64 {
+@@ -380,6 +394,219 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -691,22 +691,55 @@ index ea0c1ac..6eba7ad 100644
 +        if (affine && (triCount > 0)) {
 +            const auto &posScreen = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor].drawData.posScreen;
 +            float minX = FLT_MAX, minY = FLT_MAX, maxX = -FLT_MAX, maxY = -FLT_MAX;
++            float area = 0.0f; // summed triangle area in screen pixels (overlaps count twice)
++            const auto &tcFloats = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor].drawData.tcFloats;
++            float minS = FLT_MAX, maxS = -FLT_MAX, minT = FLT_MAX, maxT = -FLT_MAX;
++            const auto &normColBytes = state->ext.workloadQueue->workloads[state->ext.workloadQueue->writeCursor].drawData.normColBytes;
++            uint32_t firstColor = 0;
++            bool uniformColor = true, haveColor = false;
 +            for (uint32_t i = 0; i < triCount; i++) {
 +                const uint32_t src = address + i * 16;
++                hlslpp::float2 t[3];
 +                for (uint32_t k = 1; k <= 3; k++) {
 +                    const hlslpp::float3 &p = posScreen[indices[readDKR8(state, src + k) % RSP_MAX_VERTICES]];
 +                    minX = std::min(minX, float(p.x)); maxX = std::max(maxX, float(p.x));
 +                    minY = std::min(minY, float(p.y)); maxY = std::max(maxY, float(p.y));
++                    t[k - 1] = hlslpp::float2(float(p.x), float(p.y));
++                    const uint32_t gi = indices[readDKR8(state, src + k) % RSP_MAX_VERTICES];
++                    if (gi * 4 + 3 < normColBytes.size()) {
++                        const uint32_t c = (uint32_t(normColBytes[gi * 4 + 0]) << 24) | (uint32_t(normColBytes[gi * 4 + 1]) << 16) |
++                                           (uint32_t(normColBytes[gi * 4 + 2]) << 8) | uint32_t(normColBytes[gi * 4 + 3]);
++                        if (!haveColor) { firstColor = c; haveColor = true; } else if (c != firstColor) { uniformColor = false; }
++                    }
++                    if (gi * 2 + 1 < tcFloats.size()) {
++                        minS = std::min(minS, tcFloats[gi * 2 + 0]); maxS = std::max(maxS, tcFloats[gi * 2 + 0]);
++                        minT = std::min(minT, tcFloats[gi * 2 + 1]); maxT = std::max(maxT, tcFloats[gi * 2 + 1]);
++                    }
 +                }
++                area += std::abs(float((t[1].x - t[0].x) * (t[2].y - t[0].y) - (t[2].x - t[0].x) * (t[1].y - t[0].y))) * 0.5f;
 +            }
 +
 +            // Compare with the screen (the RDP scissor, in 10.2 fixed point): JFG's 2D viewport is taller than the screen.
 +            const FixedRect &screen = state->rdp->scissorRectStack[state->rdp->scissorStackSize - 1];
 +            const float left = screen.ulx / 4.0f, top = screen.uly / 4.0f, right = screen.lrx / 4.0f, bottom = screen.lry / 4.0f;
 +            const float marginX = (right - left) * 0.05f, marginY = (bottom - top) * 0.05f;
-+            if ((right > left) && (bottom > top) &&
++            // Which full-screen 2D layers mean "this frame is designed for 4:3":
++            // - screen-sized and textured (images, the title vignette), or screen-sized in one colour (fades): yes;
++            // - screen-sized with a colour gradient and no texture: no, a decorative overlay over gameplay (the mines' tint);
++            // - far larger than the screen and untextured (iris wipes): yes;
++            // - far larger than the screen and textured: no, a glow sprite close to the camera (the mines' lamps).
++            const bool textured = ((maxS - minS) > 0.5f) || ((maxT - minT) > 0.5f);
++            const bool screenSized = (minX >= left - marginX) && (maxX <= right + marginX) && (minY >= top - marginY) && (maxY <= bottom + marginY);
++            const bool framesThe4x3 = screenSized ? (textured || uniformColor) : !textured;
++            if ((right > left) && (bottom > top) && framesThe4x3 &&
 +                (minX <= left + marginX) && (maxX >= right - marginX) && (minY <= top + marginY) && (maxY >= bottom - marginY))
 +            {
++                static const bool debugPillarbox = getenv("JFG_DEBUG_PILLARBOX") != nullptr;
++                if (debugPillarbox) {
++                    fprintf(stderr, "[pillarbox] workload %llu: %u tris, bbox (%.0f,%.0f)-(%.0f,%.0f), area %.0f of screen %.0f (%.2f), st span %.0f x %.0f, colour %08X %s\n",
++                        (unsigned long long)state->workloadCounter, triCount, minX, minY, maxX, maxY, area,
++                        (right - left) * (bottom - top), area / ((right - left) * (bottom - top)), maxS - minS, maxT - minT, firstColor, uniformColor ? "uniform" : "varies");
++                }
 +                state->fullscreen2DWorkload = state->workloadCounter;
 +                state->fullscreen2DSeen = true;
 +                state->fullscreen2DRect = screen;
