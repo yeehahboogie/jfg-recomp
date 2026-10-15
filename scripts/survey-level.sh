@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 target="$1"; out="$2"; extra="${3:-}"
 mkdir -p "$out"
-rm -f build/appdata/saves/jfg.n64.us.bin*
+rm -f "${APP_FOLDER_PATH:?set APP_FOLDER_PATH}"/saves/jfg.n64.us.bin*
 # Title -> New Game -> name entry -> start; the warp replaces the story intro (requested about 54 s in).
 menus="30+0.3 START; 36+0.3 START; 42+0.3 A; 49+0.2 A; 50.5+0.15 - 0 -1; 51.3+0.15 - 0 -1; 52.1+0.15 - 0 -1; 52.9+0.15 - 0 -1; 54+0.2 A"
 JFG_WARP="$target" JFG_DEBUG_LEVELS=1 JFG_INPUT_SCRIPT="$menus${extra:+; $extra}" \

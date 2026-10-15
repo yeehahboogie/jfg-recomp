@@ -7,12 +7,14 @@ cd "$(dirname "$0")/.."
 out="$1"; shift
 # Run off the desktop on a private virtual X display (Xvfb; the NVIDIA driver still renders on the GPU), so test runs
 # never open windows on the user's screen or take keyboard focus. JFG_ON_DESKTOP=1 runs on the real display instead.
+# JFG_XDISPLAY picks the virtual display number (default 99), so several runs can go in parallel.
 if [ "${JFG_ON_DESKTOP:-0}" != 1 ]; then
-  export DISPLAY=:99
+  xd=":${JFG_XDISPLAY:-99}"
+  export DISPLAY="$xd"
   unset WAYLAND_DISPLAY
-  if ! xwininfo -root -display :99 > /dev/null 2>&1; then
-    Xvfb :99 -screen 0 1920x1080x24 -nolisten tcp > /dev/null 2>&1 &
-    for _ in $(seq 20); do sleep 0.2; xwininfo -root -display :99 > /dev/null 2>&1 && break; done
+  if ! xwininfo -root -display "$xd" > /dev/null 2>&1; then
+    Xvfb "$xd" -screen 0 1920x1080x24 -nolisten tcp > /dev/null 2>&1 &
+    for _ in $(seq 20); do sleep 0.2; xwininfo -root -display "$xd" > /dev/null 2>&1 && break; done
   fi
 fi
 times=("${@:-8 14 20 26 32 40}")
