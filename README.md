@@ -37,7 +37,7 @@ Known limitations:
 
 ## Install
 
-You need 64-bit x86 Linux with a Vulkan-capable graphics card, about 6 GB of free disk space for the build, and your
+You need 64-bit x86 Linux with a Vulkan-capable graphics card, about 3 GB of free disk space for the build, and your
 ROM. The installer has been tested on Ubuntu 24.04; Fedora and Arch package names are included but untested.
 
 ```bash
