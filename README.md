@@ -41,7 +41,7 @@ You need 64-bit x86 Linux with a Vulkan-capable graphics card, about 3 GB of fre
 ROM. The installer has been tested on Ubuntu 24.04; Fedora and Arch package names are included but untested.
 
 ```bash
-git clone --recurse-submodules https://github.com/<owner>/jfg-recomp.git
+git clone --recurse-submodules https://github.com/tallsam/jfg-recomp.git
 cd jfg-recomp
 ./install.sh ~/path/to/your/jet-force-gemini.z64
 ```
