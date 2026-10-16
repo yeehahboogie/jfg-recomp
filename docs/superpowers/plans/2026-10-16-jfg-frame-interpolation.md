@@ -1286,6 +1286,27 @@ Measured with `JFG_DEBUG_MTXSRC` (Task 1) on two frames, with every matrix load 
 | Billboards (sprites, particles, shots) | no matrix of their own: vertices after vertex 0 are offset from it under the current slot | 10 sections per frame | particle slot or emitter | plan 2: `partDraw` (0x80063730) and the billboard path in the RT64 patch |
 | The small module display list (0x327A10) | one camera and about 25 object matrices | gameplay only | unknown purpose | none: drawn as-is |
 
+**Correction (2026-10-16, from plan 2 research): the writer names above are wrong.** In this recompiled code, an ordinary
+call doesn't set `$ra`; only the main-to-module call thunks write it. So the probe's `ra` is the return site of the most
+recent module call, not the caller of `mathMtxF2L` or `camConvertMatrixList`. The structural findings stand: the two
+routines, in-place conversion, and the two display lists.
+
+The actual writers:
+- **Absolute world draws:** objects, the sky object, guns and severed limbs. They come from `camPushModelMtx`
+  (0x80041CA0; `objPrintModelObject` passes the object as the transform), `camPushFloatModelMtx` (0x800419AC),
+  `camPushMuzzleMtx` (0x80041A90) and `camScaleModelMtx` (0x80041BE0). All of them call `mathMtxF2L` with
+  `$a0 = 0x800FB038`, which holds model (0x800FAAB0) × view-projection (0x800FAAF0), into the per-frame pool.
+- **`mathMtxF2L` with `$a0 = 0x800FAAF0`** is a camera (`camSetProjMtx`). With `$a0 = 0x800FAAB0` it is a sprite's
+  billboard matrix (`camDoSprite`, slot 2, in clip space).
+- **Track blocks are not absolute:** they're world-space geometry under the slot-0 camera.
+- **The sky** (single view, Goldwood): the sky object `*0x800F2F88` (`trackGetSky`), drawn by `objPrintObject` at the
+  camera's position. Its absolute matrix is the camera's rotation and projection with zero translation.
+- **Relative (joint) matrices:** the single `camConvertMatrixList` call, in `modGenAnimMatrices` at 0x8003DD94, with
+  `$a0` = the instance's current joint buffer and `$a1` = the joint count.
+  - The gameplay ones come from `girlControl` and friends (player modules) and from `objPrintModelObject`.
+  - The cutscene ones come from the module 47 actor update.
+- **The small module display list (0x327A10)** is the refraction pass (`refractTick`, module 2 +0x788).
+
 **Open for plan 2:**
 - What the small module display list draws.
 - Which object each `func_8001448C` draw belongs to: log its caller's object pointer.
