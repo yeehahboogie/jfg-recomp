@@ -33,10 +33,13 @@ Frame Recorder::take(uint32_t dl_address, uint16_t rate) {
         i = j;
     }
     entries_.clear();
+    after_empty_ = false;
     return frame;
 }
 
 Frame Recorder::empty(uint32_t dl_address, uint16_t rate) {
+    if (after_empty_) entries_.clear();
+    after_empty_ = true;
     Frame frame;
     frame.sequence = next_sequence_++;
     frame.dl_address = dl_address;

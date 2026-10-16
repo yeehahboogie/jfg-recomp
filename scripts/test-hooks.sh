@@ -41,3 +41,5 @@ build/tools_test
 build/skeleton_test
 "$CXX" -std=c++20 -Wall -Iinclude -Ilib/rt64/src src/jfg/interp.cpp tests/interp_test.cpp -o build/interp_test
 build/interp_test
+"$CXX" -std=c++20 -Wall -Ilib/rt64/src -Ilib/rt64/src/contrib/hlslpp/include tests/interp_groups_test.cpp -o build/interp_groups_test
+build/interp_groups_test

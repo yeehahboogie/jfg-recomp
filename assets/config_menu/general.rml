@@ -302,7 +302,7 @@
                                 data-checked="controls_show_stats"
                                 value="Off"
                                 id="controls_show_stats_off"
-                                style="nav-up: #controls_extra_players_off; nav-down: #controls_interpolation_off"
+                                style="nav-up: #controls_extra_players_off"
                             />
                             <label class="config-option__tab-label" for="controls_show_stats_off">Off</label>
 
@@ -314,39 +314,11 @@
                                 data-checked="controls_show_stats"
                                 value="On"
                                 id="controls_show_stats_on"
-                                style="nav-up: #controls_extra_players_on; nav-down: #controls_interpolation_on"
+                                style="nav-up: #controls_extra_players_on"
                             />
                             <label class="config-option__tab-label" for="controls_show_stats_on">On</label>
                         </div>
                     </div>
-
-                    <div class="config-option" data-event-mouseover="set_cur_config_index(19)">
-                        <label class="config-option__title">Frame Interpolation</label>
-                        <div class="config-option__list">
-                            <input
-                                type="radio"
-                                data-event-blur="set_cur_config_index(-1)"
-                                data-event-focus="set_cur_config_index(19)"
-                                name="controls_interpolation"
-                                data-checked="controls_interpolation"
-                                value="Off"
-                                id="controls_interpolation_off"
-                                style="nav-up: #controls_show_stats_off"
-                            />
-                            <label class="config-option__tab-label" for="controls_interpolation_off">Off</label>
-
-                            <input
-                                type="radio"
-                                data-event-blur="set_cur_config_index(-1)"
-                                data-event-focus="set_cur_config_index(19)"
-                                name="controls_interpolation"
-                                data-checked="controls_interpolation"
-                                value="On"
-                                id="controls_interpolation_on"
-                                style="nav-up: #controls_show_stats_on"
-                            />
-                            <label class="config-option__tab-label" for="controls_interpolation_on">On</label>
-                        </div>
                     </div>
 
                     
@@ -397,9 +369,6 @@
                     </p>
                     <p data-if="cur_config_index == 18">
                         Shows game and render frame rates, frame time, the current level, your position and the audio latency in a corner of the screen. <b>F3</b> also toggles it.
-                    </p>
-                    <p data-if="cur_config_index == 19">
-                        Draws in-between frames so motion is smooth at your display's refresh rate (set the rate under Graphics, Framerate). <b>Experimental:</b> only some things are smoothed so far; the rest moves at the game's own 30 frames per second.
                     </p>
                 </div>
             </div>

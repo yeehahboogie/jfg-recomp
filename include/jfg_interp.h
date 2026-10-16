@@ -31,12 +31,14 @@ public:
     // The frame recorded since the last take, finished (sorted, conflicts dropped); starts a new one.
     Frame take(uint32_t dl_address, uint16_t rate);
     // An empty frame for a display list the recording isn't for (gameplay's small module display list, submitted
-    // between two main ones while the next main frame is being built); what's recorded is kept.
+    // between two main ones while the next main frame is being built); what's recorded is kept for one such submit,
+    // and dropped at a second one in a row (no main display list is coming for it).
     Frame empty(uint32_t dl_address, uint16_t rate);
 
 private:
     std::vector<RT64::JfgMatrixIdentity> entries_;
     uint64_t next_sequence_ = 0;
+    bool after_empty_ = false;
 };
 
 // Frames waiting for the renderer, in submission order. Pushed on the game thread, popped on the gfx thread.

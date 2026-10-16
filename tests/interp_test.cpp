@@ -40,6 +40,13 @@ int main() {
     assert(other.entries.empty() && other.dl_address == 0x327A10 && other.sequence == 2);
     Frame main = rec.take(0x1FB0C0, 30);
     assert(main.entries.size() == 1 && main.entries[0].id == 9 && main.sequence == 3);
+    // A second non-main submit in a row means no main display list is coming for what was recorded (a screen that only
+    // submits its own display lists): it's dropped rather than carried, stale, into the next main frame.
+    rec.add(0x5000, 11);
+    rec.empty(0x327A10, 30);
+    rec.empty(0x327A10, 30);
+    Frame later = rec.take(0x220FE0, 30);
+    assert(later.entries.empty());
 
     // Handoff: display lists alternate between two buffers; a pop takes the oldest frame for that buffer and
     // discards the frames before it.

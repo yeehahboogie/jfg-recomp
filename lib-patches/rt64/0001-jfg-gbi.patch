@@ -620,6 +620,56 @@ index 0000000..515ee5f
 +        }
 +    };
 +};
+diff --git a/src/hle/rt64_jfg_groups.h b/src/hle/rt64_jfg_groups.h
+new file mode 100644
+index 0000000..6d5420b
+--- /dev/null
++++ b/src/hle/rt64_jfg_groups.h
+@@ -0,0 +1,44 @@
++//
++// RT64
++//
++
++#pragma once
++
++#include "rt64_jfg_frame.h"
++#include "rt64_transform_group.h"
++
++// Jet Force Gemini frame interpolation: the transform groups the F3DJFG handlers give matrix loads (RSP::jfgTransformGroup
++// and friends), kept apart from the RSP so they can be tested on their own.
++namespace RT64 {
++    // Drawn as-is: never paired with another frame.
++    inline TransformGroup jfgIgnoreGroup() {
++        TransformGroup group;
++        group.matrixId = G_EX_ID_IGNORE;
++        group.tileInterpolation = G_EX_COMPONENT_SKIP; // AUTO would still pair texture scroll by RT64's heuristic
++        return group;
++    }
++
++    // The group for a matrix loaded from physicalAddress, from the frame's identity table: its ID, matched by ID between
++    // frames, with the components its skip flags allow. Unknown matrices, or interpolation switched off, are drawn as-is.
++    inline TransformGroup jfgGroupFor(const JfgFrameTable *table, uint32_t physicalAddress, bool projection) {
++        const JfgMatrixIdentity *entry = ((table != nullptr) && table->enabled) ? table->find(physicalAddress) : nullptr;
++        if (entry == nullptr) {
++            return jfgIgnoreGroup();
++        }
++
++        auto mode = [entry](uint8_t skipBit) {
++            return (entry->skip & skipBit) ? uint8_t(G_EX_COMPONENT_SKIP) : uint8_t(G_EX_COMPONENT_INTERPOLATE);
++        };
++        TransformGroup group;
++        group.matrixId = entry->id;
++        group.ordering = G_EX_ORDER_LINEAR;
++        group.positionInterpolation = mode(JFG_SKIP_POSITION);
++        group.rotationInterpolation = mode(JFG_SKIP_ROTATION);
++        group.scaleInterpolation = mode(JFG_SKIP_SCALE);
++        group.skewInterpolation = mode(JFG_SKIP_SCALE);
++        group.perspectiveInterpolation = projection ? mode(JFG_SKIP_SCALE) : uint8_t(G_EX_COMPONENT_AUTO);
++        group.vertexInterpolation = G_EX_COMPONENT_SKIP;
++        group.tileInterpolation = G_EX_COMPONENT_SKIP;
++        return group;
++    }
++};
 diff --git a/src/hle/rt64_present.h b/src/hle/rt64_present.h
 index e1889e5..0681436 100644
 --- a/src/hle/rt64_present.h
@@ -687,7 +737,7 @@ index 7bec992..a95040f 100644
  
      struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..8e74e13 100644
+index ea0c1ac..73b172c 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -5,6 +5,8 @@
@@ -699,7 +749,15 @@ index ea0c1ac..8e74e13 100644
  
  #include "../include/rt64_extended_gbi.h"
  #include "common/rt64_common.h"
-@@ -38,6 +40,31 @@ namespace RT64 {
+@@ -13,6 +15,7 @@
+ #include "shared/rt64_rsp_fog.h"
+ 
+ #include "rt64_interpreter.h"
++#include "rt64_jfg_groups.h"
+ #include "rt64_state.h"
+ 
+ //#define LOG_SPECIAL_MATRIX_OPERATIONS
+@@ -38,6 +41,31 @@ namespace RT64 {
      }
  
      void RSP::reset() {
@@ -731,7 +789,7 @@ index ea0c1ac..8e74e13 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +407,294 @@ namespace RT64 {
+@@ -380,6 +408,271 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -911,27 +969,7 @@ index ea0c1ac..8e74e13 100644
 +    }
 +
 +    TransformGroup RSP::jfgTransformGroup(uint32_t physicalAddress, bool projection) const {
-+        TransformGroup group;
-+        const JfgFrameTable *table = state->jfgFrame;
-+        const JfgMatrixIdentity *entry = ((table != nullptr) && table->enabled) ? table->find(physicalAddress) : nullptr;
-+        if (entry == nullptr) {
-+            group.matrixId = G_EX_ID_IGNORE;
-+            return group;
-+        }
-+
-+        auto mode = [entry](uint8_t skipBit) {
-+            return (entry->skip & skipBit) ? uint8_t(G_EX_COMPONENT_SKIP) : uint8_t(G_EX_COMPONENT_INTERPOLATE);
-+        };
-+        group.matrixId = entry->id;
-+        group.ordering = G_EX_ORDER_LINEAR;
-+        group.positionInterpolation = mode(JFG_SKIP_POSITION);
-+        group.rotationInterpolation = mode(JFG_SKIP_ROTATION);
-+        group.scaleInterpolation = mode(JFG_SKIP_SCALE);
-+        group.skewInterpolation = mode(JFG_SKIP_SCALE);
-+        group.perspectiveInterpolation = projection ? mode(JFG_SKIP_SCALE) : uint8_t(G_EX_COMPONENT_AUTO);
-+        group.vertexInterpolation = G_EX_COMPONENT_SKIP;
-+        group.tileInterpolation = G_EX_COMPONENT_SKIP;
-+        return group;
++        return jfgGroupFor(state->jfgFrame, physicalAddress, projection);
 +    }
 +
 +    void RSP::setModelGroupDKR(uint32_t physicalAddress) {
@@ -948,9 +986,7 @@ index ea0c1ac..8e74e13 100644
 +
 +    // The identity model under an absolute matrix or a billboard isn't a world transform of its own: never pair it.
 +    void RSP::setModelGroupIgnoreDKR() {
-+        TransformGroup &group = extended.modelMatrixIdStack[extended.modelMatrixIdStackSize - 1];
-+        group = TransformGroup();
-+        group.matrixId = G_EX_ID_IGNORE;
++        extended.modelMatrixIdStack[extended.modelMatrixIdStackSize - 1] = jfgIgnoreGroup();
 +        extended.modelMatrixIdStackChanged = true;
 +    }
 +
@@ -973,8 +1009,7 @@ index ea0c1ac..8e74e13 100644
 +            }
 +        }
 +        else {
-+            group = TransformGroup();
-+            group.matrixId = G_EX_ID_IGNORE;
++            group = jfgIgnoreGroup();
 +        }
 +        extended.viewProjMatrixIdStackChanged = true;
 +
