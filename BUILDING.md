@@ -21,7 +21,7 @@ Without root, unpack the same packages into `.toolchain/root` (`apt-get download
 ## Steps
 
 ```bash
-git clone --recurse-submodules https://github.com/tallsam/jfg-recomp.git && cd jfg-recomp
+git clone --recurse-submodules https://github.com/yeehahboogie/jfg-recomp.git && cd jfg-recomp
 scripts/apply-lib-patches.sh                      # our patches to RT64 and N64ModernRuntime (lib-patches/)
 python3 -m venv tools/romtool/.venv && tools/romtool/.venv/bin/pip install -e 'tools/romtool[test,disasm]'
 cmake -S lib/N64Recomp -B build/tools/N64Recomp -G Ninja -DCMAKE_BUILD_TYPE=Release \
