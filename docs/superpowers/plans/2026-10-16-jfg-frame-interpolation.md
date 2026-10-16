@@ -1292,3 +1292,25 @@ Measured with `JFG_DEBUG_MTXSRC` (Task 1) on two frames, with every matrix load 
 - `controlPlayer+0x650` is only the nearest named symbol to the queueing call's return address. The real queueing
   site is probably an unnamed function after it, so find the call to `camConvertMatrixList` on the model-draw path
   before relying on the name.
+
+## Task 7 results (2026-10-16)
+
+On the virtual display (`DISPLAY=:99`, test folder `build/appdata-interp`, Framerate Manual 60):
+
+- **Pairing works.** In Goldwood gameplay the four world-camera loads per frame are tagged (the HUD's fixed camera
+  stays unknown), and RT64 pairs the camera with its previous frame by ID (`JFG_DEBUG_INTERP`: `projection p=0: cur id
+  00000100 prev id 00000100 mapped 1`). RT64 decides to generate in-between frames: game rate 30, target 60, not
+  paused, target framebuffer found.
+- **No flicker.** The ship-landing recording with interpolation on has 0 flicker spikes over 45 s. Frames around its
+  cuts and at the landing pad show no blend of two shots and no stray geometry. Cuts are logged at scene changes (about
+  one every few seconds in the intro and landing), at world positions.
+- **Smoothness can't be judged here.** The plan's frame-count checks (single-frame pictures, and a camera-pan
+  shift test tried as a replacement) come out the same with interpolation on, off, or with Framerate Original. The
+  virtual display, with vsync off, doesn't pace presents to a refresh, so captured frames don't show RT64's in-between
+  frames reliably. This machine's real screen was blanked, which paces a hidden window at about 1 Hz. Ruling: the
+  remaining check is by eye on real hardware.
+
+Rulings made on the way are in the ledger (`.superpowers/sdd/2026-10-16-jfg-frame-interpolation/progress.md`) and
+the commit messages. They cover the second display list, the main-only take, the slot-0 identity model, test
+arithmetic and the frame-count checks.
+

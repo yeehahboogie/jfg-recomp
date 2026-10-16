@@ -517,7 +517,7 @@ index 4e83f71..f4f3648 100644
          const RenderSampleCounts colorSampleCounts = device->getSampleCountsSupported(RenderTarget::colorBufferFormat(usesHDR));
          const RenderSampleCounts depthSampleCounts = device->getSampleCountsSupported(RenderTarget::depthBufferFormat());
 diff --git a/src/hle/rt64_game_frame.cpp b/src/hle/rt64_game_frame.cpp
-index 0b1eb0d..eec47e1 100644
+index 0b1eb0d..1b34c42 100644
 --- a/src/hle/rt64_game_frame.cpp
 +++ b/src/hle/rt64_game_frame.cpp
 @@ -420,6 +420,13 @@ namespace RT64 {
@@ -534,6 +534,22 @@ index 0b1eb0d..eec47e1 100644
              // Projection for the entire scene has been matched already, copy the mapping.
              if (mappedViewProjIndex < UINT32_MAX) {
                  firstCurWorkloadMap.viewProjections[curProj.transformsIndex] = firstCurWorkloadMap.viewProjections[mappedViewProjIndex];
+@@ -463,6 +470,15 @@ namespace RT64 {
+                     projectionSkewComponent = curProjGroup.skewInterpolation;
+                     projectionPerspectiveComponent = curProjGroup.perspectiveInterpolation;
+                     viewProjMap.mapped = (curProjGroup.matrixId == prevProjGroup.matrixId);
++                    // JFG_DEBUG_INTERP=1: every 60th explicit-ID projection pairing (Jet Force Gemini's cameras).
++                    {
++                        static const bool interpDebug = getenv("JFG_DEBUG_INTERP") != nullptr;
++                        static uint64_t debugCount = 0;
++                        if (interpDebug && ((debugCount++ % 60) == 0)) {
++                            fprintf(stderr, "[interp] projection p=%u of %zu: cur id %08X prev id %08X mapped %d\n", p, curScene.projections.size(),
++                                curProjGroup.matrixId, prevProjGroup.matrixId, viewProjMap.mapped);
++                        }
++                    }
+                 }
+                 else {
+                     viewProjMap.mapped = (curProjGroup.matrixId == G_EX_ID_AUTO);
 diff --git a/src/hle/rt64_interpreter.cpp b/src/hle/rt64_interpreter.cpp
 index dccaa87..343a2b9 100644
 --- a/src/hle/rt64_interpreter.cpp
@@ -1196,6 +1212,26 @@ index 8d66101..376bfd8 100644
          return rect;
      }
  
+diff --git a/src/hle/rt64_workload_queue.cpp b/src/hle/rt64_workload_queue.cpp
+index 5b0b726..71508cb 100644
+--- a/src/hle/rt64_workload_queue.cpp
++++ b/src/hle/rt64_workload_queue.cpp
+@@ -957,6 +957,15 @@ namespace RT64 {
+ 
+                     const bool displayRateAboveOriginal = (workload.viOriginalRate > 0) && (workloadConfig.targetRate > workload.viOriginalRate);
+                     generateInterpolatedFrames = !workload.paused && displayRateAboveOriginal && !interpolationTargetKey.isEmpty();
++                    // JFG_DEBUG_INTERP=1: once a second, why in-between frames are or aren't generated.
++                    {
++                        static const bool interpDebug = getenv("JFG_DEBUG_INTERP") != nullptr;
++                        static uint64_t debugCount = 0;
++                        if (interpDebug && ((debugCount++ % 60) == 0)) {
++                            fprintf(stderr, "[interp] workload: original %u target %u paused %d targetKey %d -> generate %d\n",
++                                workload.viOriginalRate, workloadConfig.targetRate, workload.paused, !interpolationTargetKey.isEmpty(), generateInterpolatedFrames);
++                        }
++                    }
+ 
+                     const bool resetTicks = !generateInterpolatedFrames || (originalRateForTicks != workload.viOriginalRate) || (displayRateForTicks != workloadConfig.targetRate) || !displayRateAboveOriginal;
+                     if (resetTicks) {
 diff --git a/src/render/rt64_vi_renderer.cpp b/src/render/rt64_vi_renderer.cpp
 index d597d75..ef82ff9 100644
 --- a/src/render/rt64_vi_renderer.cpp
