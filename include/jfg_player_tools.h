@@ -10,7 +10,7 @@
 
 namespace jfg::tools {
 struct Cheats {
-    std::atomic<bool> invulnerable{false}, all_weapons{false}, all_levels{false}, infinite_ammo{false};
+    std::atomic<bool> invulnerable{false}, all_weapons{false}, all_levels{false}, infinite_ammo{false}, big_head{false};
 };
 Cheats& cheats();
 

@@ -185,7 +185,7 @@ int64_t now_ns() {
     return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
 }
 
-// Development aid: JFG_CHEATS=invuln,weapons[,levels][,ammo] switches cheats on from the start (scripted runs).
+// Development aid: JFG_CHEATS=invuln,weapons[,levels][,ammo][,bighead] switches cheats on from the start (scripted runs).
 jfg::tools::Cheats& cheat_state() {
     static jfg::tools::Cheats state;
     static bool initialised = false;
@@ -197,6 +197,7 @@ jfg::tools::Cheats& cheat_state() {
         state.all_weapons = list.find("weapons") != std::string::npos;
         state.all_levels = list.find("levels") != std::string::npos;
         state.infinite_ammo = list.find("ammo") != std::string::npos;
+        state.big_head = list.find("bighead") != std::string::npos;
     }
     return state;
 }

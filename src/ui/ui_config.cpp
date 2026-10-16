@@ -541,6 +541,7 @@ void make_cheats_bindings(Rml::DataModelConstructor& constructor) {
     toggle("cheat_all_weapons", &jfg::tools::Cheats::all_weapons);
     toggle("cheat_all_levels", &jfg::tools::Cheats::all_levels);
     toggle("cheat_infinite_ammo", &jfg::tools::Cheats::infinite_ammo);
+    toggle("cheat_big_head", &jfg::tools::Cheats::big_head);
     constructor.Bind("cheat_level_names", &cheats_context.level_names);
     constructor.Bind("cheat_warp_level", &cheats_context.warp_level);
     constructor.Bind("cheat_exit_labels", &cheats_context.exit_labels);

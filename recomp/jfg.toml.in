@@ -6,7 +6,7 @@ entrypoint = 0x80000400
 elf_path = "@GENERATED@/jfg.elf"
 output_func_path = "@GENERATED@/funcs"
 relocatable_sections_path = "@GENERATED@/relocatable_sections.txt"
-recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\"\n#include \"jfg_level_hooks.h\""
+recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\"\n#include \"jfg_level_hooks.h\"\n#include \"jfg_big_head.h\""
 functions_per_output_file = 50
 
 [patches]
@@ -143,3 +143,9 @@ text = "jfg_aim_move(rdram, ctx);"
 [[patches.hook]]
 func = "func_8004665C"          # mainChangeLevel(level, ...)
 text = "jfg_level_change(rdram, ctx);"
+
+# Big head mode: the joint matrices are ready just before modGenAnimMatrices returns. See src/jfg/big_head.cpp.
+[[patches.hook]]
+func = "func_8003D21C"
+before_vram = 0x8003DD9C
+text = "jfg_anim_matrices_done(rdram, ctx);"

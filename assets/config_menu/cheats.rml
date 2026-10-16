@@ -105,7 +105,7 @@
                                 data-checked="cheat_infinite_ammo"
                                 value="Off"
                                 id="cheat_infinite_ammo_off"
-                                style="nav-up: #cheat_all_levels_off; nav-down: #cheat_refill_health"
+                                style="nav-up: #cheat_all_levels_off; nav-down: #cheat_big_head_off"
                             />
                             <label class="config-option__tab-label" for="cheat_infinite_ammo_off">Off</label>
 
@@ -117,9 +117,38 @@
                                 data-checked="cheat_infinite_ammo"
                                 value="On"
                                 id="cheat_infinite_ammo_on"
-                                style="nav-up: #cheat_all_levels_on; nav-down: #cheat_refill_health"
+                                style="nav-up: #cheat_all_levels_on; nav-down: #cheat_big_head_on"
                             />
                             <label class="config-option__tab-label" for="cheat_infinite_ammo_on">On</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(7)">
+                        <label class="config-option__title">Big Heads</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(7)"
+                                name="cheat_big_head"
+                                data-checked="cheat_big_head"
+                                value="Off"
+                                id="cheat_big_head_off"
+                                style="nav-up: #cheat_infinite_ammo_off; nav-down: #cheat_refill_health"
+                            />
+                            <label class="config-option__tab-label" for="cheat_big_head_off">Off</label>
+
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(7)"
+                                name="cheat_big_head"
+                                data-checked="cheat_big_head"
+                                value="On"
+                                id="cheat_big_head_on"
+                                style="nav-up: #cheat_infinite_ammo_on; nav-down: #cheat_refill_health"
+                            />
+                            <label class="config-option__tab-label" for="cheat_big_head_on">On</label>
                         </div>
                     </div>
 
@@ -130,7 +159,7 @@
                             <div class="config-debug__option-trigger">
                                 <button class="icon-button icon-button--success" onclick="cheat_refill_health" id="cheat_refill_health"
                                         data-event-focus="set_cur_config_index(4)" data-event-mouseover="set_cur_config_index(4)"
-                                        style="nav-up: #cheat_infinite_ammo_off; nav-down: #cheat_warp_select">
+                                        style="nav-up: #cheat_big_head_off; nav-down: #cheat_warp_select">
                                     <svg src="icons/Arrow.svg" />
                                 </button>
                             </div>
@@ -199,6 +228,9 @@
                     </p>
                     <p data-if="cur_config_index == 3">
                         Keeps every weapon you carry at full ammo.
+                    </p>
+                    <p data-if="cur_config_index == 7">
+                        Doubles the size of every character's head (Juno, Vela, Lupus, friends and enemies).
                     </p>
                     <p data-if="cur_config_index == 4">
                         Restores full health now.
