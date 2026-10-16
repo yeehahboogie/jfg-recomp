@@ -1025,6 +1025,7 @@ public:
         radio("controls_aim_button", &jfg::controls::Settings::aim_toggle, "Toggle", "Hold");
         radio("controls_extra_players", &jfg::controls::Settings::extra_players, "On", "Off");
         radio("controls_show_stats", &jfg::controls::Settings::show_stats, "On", "Off");
+        radio("controls_interpolation", &jfg::controls::Settings::interpolation, "On", "Off");
 
         // Drift-back delay in tenths of a second; 0 means off (stored as -1).
         constructor.BindFunc("controls_drift",

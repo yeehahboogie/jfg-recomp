@@ -14,6 +14,7 @@ struct Settings {
     bool aim_toggle = false;       // aim button: hold (false) or toggle
     bool extra_players = false;    // gamepads 2-4 become players 2-4 (false: every gamepad drives player 1)
     bool show_stats = false;       // the stats overlay (F3)
+    bool interpolation = false;    // frame interpolation (experimental): RT64 draws in-between frames for known matrices
 };
 // Missing keys keep their defaults, so older config files load.
 void to_json(nlohmann::json& j, const Settings& s);

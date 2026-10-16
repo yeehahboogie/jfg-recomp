@@ -6,15 +6,18 @@ int main() {
     s.modern = false; s.drift_delay = -1; s.stick_yaw_dps = 90; s.aim_toggle = true; s.invert_mouse_y = true;
     s.extra_players = true;
     s.show_stats = true;
+    s.interpolation = true;
     nlohmann::json j = s;
     jfg::controls::Settings t = j.get<jfg::controls::Settings>();
     assert(!t.modern && t.drift_delay == -1 && t.stick_yaw_dps == 90 && t.aim_toggle && t.invert_mouse_y);
     assert(t.extra_players && t.show_stats);
+    assert(t.interpolation);
     assert(t.camera_mode == 0 && t.stick_pitch_dps == 120 && t.aim_mult == 0.6f && !t.invert_stick_y);
     jfg::controls::Settings d = nlohmann::json::object().get<jfg::controls::Settings>();
     assert(d.modern && d.drift_delay == 1.5f && d.aim_mult == 0.6f && d.stick_yaw_dps == 180 && !d.aim_toggle);
     assert(!d.extra_players); // off by default: every gamepad drives player 1
     assert(!d.show_stats);    // the stats overlay starts hidden
+    assert(!d.interpolation); // frame interpolation is opt-in until every kind of draw interpolates cleanly
     // A partial object (an older config) keeps the defaults for the missing keys.
     jfg::controls::Settings e = nlohmann::json{{"modern", false}}.get<jfg::controls::Settings>();
     assert(!e.modern && e.drift_delay == 1.5f);
