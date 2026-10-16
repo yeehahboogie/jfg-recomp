@@ -1,4 +1,4 @@
-"""Command line: verify / info / build-elf / disasm."""
+"""Command line: verify / info / export / build-elf / disasm."""
 import argparse
 import dataclasses
 import struct
@@ -37,6 +37,14 @@ def _hook_toml(program: Program) -> str:
 def cmd_verify(args) -> int:
     load_rom(args.rom)
     print("OK: Jet Force Gemini (USA) [!]")
+    return 0
+
+
+def cmd_export(args) -> int:
+    # The verified ROM in big-endian (.z64) byte order, whatever order the dump was in: what the game stores and checks.
+    rom = load_rom(args.rom)
+    Path(args.out).write_bytes(rom)
+    print(f"OK: wrote {args.out}")
     return 0
 
 
@@ -93,6 +101,9 @@ def main(argv: list[str] | None = None) -> int:
     for name in ("verify", "info"):
         s = sub.add_parser(name)
         s.add_argument("rom")
+    e = sub.add_parser("export")
+    e.add_argument("rom")
+    e.add_argument("out")
     b = sub.add_parser("build-elf")
     b.add_argument("rom")
     b.add_argument("--out", required=True)
@@ -106,7 +117,8 @@ def main(argv: list[str] | None = None) -> int:
     d.add_argument("--count", type=int, default=32)
     args = p.parse_args(argv)
     try:
-        return {"verify": cmd_verify, "info": cmd_info, "build-elf": cmd_build_elf, "disasm": cmd_disasm}[args.cmd](args)
+        return {"verify": cmd_verify, "info": cmd_info, "export": cmd_export, "build-elf": cmd_build_elf,
+                "disasm": cmd_disasm}[args.cmd](args)
     except RomError as e:
         print(f"romtool: {e}", file=sys.stderr)
         return 1

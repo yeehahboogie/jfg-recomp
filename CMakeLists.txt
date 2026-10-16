@@ -203,12 +203,6 @@ endif()
 if (MSVC)
     # Disable identical code folding, since this breaks mod function patching as multiple functions can get merged into one.
     target_link_options(JFGRecompiled PRIVATE /OPT:NOICF)
-elseif (APPLE)
-    # Use a wrapper around ld64 that respects segprot's `max_prot` value in order
-    # to make our executable memory writable (required for mod function patching)
-    target_link_options(JFGRecompiled PRIVATE
-        "-fuse-ld=${CMAKE_SOURCE_DIR}/.github/macos/ld64"
-    )
 endif()
 
 if (WIN32)
@@ -263,8 +257,6 @@ if (APPLE)
     find_package(Threads REQUIRED)
 
     target_link_libraries(JFGRecompiled PRIVATE ${CMAKE_DL_LIBS} Threads::Threads SDL2::SDL2)
-
-    include(${CMAKE_SOURCE_DIR}/.github/macos/apple_bundle.cmake)
 endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Linux")

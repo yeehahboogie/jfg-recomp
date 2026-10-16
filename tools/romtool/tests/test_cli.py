@@ -32,4 +32,25 @@ def test_build_elf(rom, tmp_path):
     assert listed[0] == ".m001" and len(listed) == 157
     assert listed[20] == "*" and listed[55] == "*"  # modules 21 and 56 have no code: empty overlay slots
     toml = (tmp_path / "jfg.toml").read_text()
-    assert "@GENERATED@" not in toml and toml.count("[[patches.hook]]") == 3 + 2
+    template_hooks = (ROOT / "recomp/jfg.toml.in").read_text().count("[[patches.hook]]")
+    assert "@GENERATED@" not in toml and toml.count("[[patches.hook]]") == template_hooks + 2  # + the 2 generated
+
+
+def test_export_rejects_garbage(tmp_path):
+    bad = tmp_path / "bad.z64"
+    bad.write_bytes(bytes.fromhex("80371240") + bytes(60))
+    r = romtool("export", str(bad), str(tmp_path / "out.z64"))
+    assert r.returncode == 1 and "does not match" in r.stderr
+    assert not (tmp_path / "out.z64").exists()
+
+
+def test_export_writes_big_endian(rom, tmp_path):
+    # A byte-swapped (.v64) dump comes out as the big-endian ROM the game stores and checks.
+    data = (ROOT / "jfg.z64").read_bytes()
+    swapped = bytearray(len(data))
+    swapped[0::2], swapped[1::2] = data[1::2], data[0::2]
+    v64 = tmp_path / "jfg.v64"
+    v64.write_bytes(bytes(swapped))
+    r = romtool("export", str(v64), str(tmp_path / "out.z64"))
+    assert r.returncode == 0, r.stderr
+    assert (tmp_path / "out.z64").read_bytes() == data
