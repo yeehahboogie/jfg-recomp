@@ -146,6 +146,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/interp_probe.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/skeleton.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/interp.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/interp_hooks.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/input_script.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/level_tools.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/level_hooks.cpp

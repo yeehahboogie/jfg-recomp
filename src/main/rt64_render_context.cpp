@@ -1,5 +1,6 @@
 #include <memory>
 #include <cstring>
+#include <cstdlib>
 #include <variant>
 #include <algorithm>
 
@@ -14,6 +15,8 @@
 #include "zelda_render.h"
 #include "recomp_ui.h"
 #include "concurrentqueue.h"
+#include "jfg_interp.h"
+#include "../jfg/controls/settings.h"
 #include "jfg_player_tools.h"
 
 static RT64::UserConfiguration::Antialiasing device_max_msaa = RT64::UserConfiguration::Antialiasing::None;
@@ -323,7 +326,27 @@ void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
     check_texture_pack_actions();
     app->state->rsp->reset();
     app->interpreter->loadUCodeGBI(task->t.ucode & 0x3FFFFFF, task->t.ucode_data & 0x3FFFFFF, true);
-    app->processDisplayLists(app->core.RDRAM, task->t.data_ptr & 0x3FFFFFF, 0, true);
+
+    // Frame interpolation: this display list's matrix identities, recorded while the game built it.
+    const uint32_t dl = task->t.data_ptr & 0x3FFFFFF;
+    uint32_t discarded = 0;
+    std::optional<jfg::interp::Frame> frame = jfg::interp::handoff().pop(dl, &discarded);
+    if (discarded > 0 || !frame) {
+        fprintf(stderr, "[interp] display list %08X: %s (%u older frames discarded)\n", dl,
+                frame ? "paired late" : "no recorded frame", discarded);
+    }
+    // JFG_INTERPOLATION=1 switches it on for scripted runs without touching the user's settings.
+    static const bool forced = std::getenv("JFG_INTERPOLATION") != nullptr;
+    RT64::JfgFrameTable table;
+    table.enabled = forced || jfg::controls::settings().interpolation;
+    if (frame) {
+        table.entries = frame->entries.data();
+        table.count = frame->entries.size();
+        app->state->setRefreshRate(frame->rate);
+    }
+    app->state->jfgFrame = &table;
+    app->processDisplayLists(app->core.RDRAM, dl, 0, true);
+    app->state->jfgFrame = nullptr;
 }
 
 void zelda64::renderer::RT64Context::update_screen() {

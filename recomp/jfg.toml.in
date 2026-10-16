@@ -6,7 +6,7 @@ entrypoint = 0x80000400
 elf_path = "@GENERATED@/jfg.elf"
 output_func_path = "@GENERATED@/funcs"
 relocatable_sections_path = "@GENERATED@/relocatable_sections.txt"
-recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\"\n#include \"jfg_level_hooks.h\"\n#include \"jfg_big_head.h\"\n#include \"jfg_interp_probe.h\""
+recomp_include = "#include \"recomp.h\"\n#include \"jfg_hooks.h\"\n#include \"jfg_cic_hook.h\"\n#include \"jfg_controls_hooks.h\"\n#include \"jfg_level_hooks.h\"\n#include \"jfg_big_head.h\"\n#include \"jfg_interp_probe.h\"\n#include \"jfg_interp_hooks.h\""
 functions_per_output_file = 50
 
 [patches]
@@ -150,10 +150,11 @@ func = "func_8003D21C"
 before_vram = 0x8003DD9C
 text = "jfg_anim_matrices_done(rdram, ctx);"
 
-# Frame interpolation, phase 0: matrix provenance (JFG_DEBUG_MTXSRC). See src/jfg/interp_probe.cpp.
+# Frame interpolation: matrix provenance (JFG_DEBUG_MTXSRC, src/jfg/interp_probe.cpp), and each frame's identities
+# handed to the renderer at submit (src/jfg/interp_hooks.cpp).
 [[patches.hook]]
 func = "func_8004DA10"          # setupOSTasks: submits the previous frame's display list
-text = "jfg_probe_submit(rdram, ctx);"
+text = "jfg_probe_submit(rdram, ctx); jfg_interp_submit(rdram, ctx);"
 
 [[patches.hook]]
 func = "func_80048D84"          # mathMtxF2L

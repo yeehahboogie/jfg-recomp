@@ -1016,10 +1016,18 @@ index 6b0bb31..f4392b5 100644
              ext.presentQueue->advanceToNextPresent();
  
 diff --git a/src/hle/rt64_state.h b/src/hle/rt64_state.h
-index cded4ca..66ecab3 100644
+index cded4ca..ce51dc8 100644
 --- a/src/hle/rt64_state.h
 +++ b/src/hle/rt64_state.h
-@@ -81,6 +81,13 @@ namespace RT64 {
+@@ -23,6 +23,7 @@
+ #include "rt64_application_window.h"
+ #include "rt64_framebuffer.h"
+ #include "rt64_framebuffer_manager.h"
++#include "rt64_jfg_frame.h"
+ #include "rt64_game_configuration.h"
+ #include "rt64_light_manager.h"
+ #include "rt64_microcode.h"
+@@ -81,6 +82,16 @@ namespace RT64 {
          std::unique_ptr<RSPProcessor> rspProcessor;
          std::vector<interop::PointLight> scriptLights;
          uint64_t workloadCounter;
@@ -1030,6 +1038,9 @@ index cded4ca..66ecab3 100644
 +        // The scissor that full-screen 2D layer was drawn with (10.2 fixed point): the pillarboxed frame shows only that
 +        // area, so rows/columns the layer leaves uncovered (it may stop at 319x239) don't show through.
 +        FixedRect fullscreen2DRect;
++        // Jet Force Gemini frame interpolation: the identities of the matrices in the display list being processed,
++        // set by the port's renderer context around processDisplayLists (null otherwise).
++        const JfgFrameTable *jfgFrame = nullptr;
          std::vector<uint64_t> evictedTextureHashes;
          std::unique_ptr<RenderTarget> dummyDepthTarget;
          DrawCall drawCall;
