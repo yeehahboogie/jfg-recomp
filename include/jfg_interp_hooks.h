@@ -17,6 +17,8 @@ void jfg_interp_object_created(uint8_t* rdram, recomp_context* ctx);
 void jfg_interp_object_freed(uint8_t* rdram, recomp_context* ctx);
 /* Entry of modFreeModel (0x8003C7C4): the model instance in $a0 is freed. */
 void jfg_interp_instance_freed(uint8_t* rdram, recomp_context* ctx);
+/* At the end of modGenAnimMatrices (0x8003DD9C): the instance's joint matrices are ready ($s4 instance, $s3 model). */
+void jfg_interp_joints(uint8_t* rdram, recomp_context* ctx);
 #ifdef __cplusplus
 }
 #endif

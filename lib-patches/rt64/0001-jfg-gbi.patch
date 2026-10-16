@@ -623,10 +623,10 @@ index 0000000..515ee5f
 +};
 diff --git a/src/hle/rt64_jfg_groups.h b/src/hle/rt64_jfg_groups.h
 new file mode 100644
-index 0000000..6d5420b
+index 0000000..a0c03ed
 --- /dev/null
 +++ b/src/hle/rt64_jfg_groups.h
-@@ -0,0 +1,44 @@
+@@ -0,0 +1,46 @@
 +//
 +// RT64
 +//
@@ -661,7 +661,9 @@ index 0000000..6d5420b
 +        TransformGroup group;
 +        group.matrixId = entry->id;
 +        group.ordering = G_EX_ORDER_LINEAR;
-+        group.positionInterpolation = mode(JFG_SKIP_POSITION);
++        // Cameras interpolate position (their cuts are flagged). Models leave it to AUTO: skipped on a velocity spike.
++        group.positionInterpolation = projection ? mode(JFG_SKIP_POSITION)
++            : ((entry->skip & JFG_SKIP_POSITION) ? uint8_t(G_EX_COMPONENT_SKIP) : uint8_t(G_EX_COMPONENT_AUTO));
 +        group.rotationInterpolation = mode(JFG_SKIP_ROTATION);
 +        group.scaleInterpolation = mode(JFG_SKIP_SCALE);
 +        group.skewInterpolation = mode(JFG_SKIP_SCALE);
@@ -1251,10 +1253,10 @@ index 8d66101..376bfd8 100644
      }
  
 diff --git a/src/hle/rt64_workload_queue.cpp b/src/hle/rt64_workload_queue.cpp
-index 5b0b726..71508cb 100644
+index 5b0b726..8bb2e5a 100644
 --- a/src/hle/rt64_workload_queue.cpp
 +++ b/src/hle/rt64_workload_queue.cpp
-@@ -957,6 +957,15 @@ namespace RT64 {
+@@ -957,6 +957,16 @@ namespace RT64 {
  
                      const bool displayRateAboveOriginal = (workload.viOriginalRate > 0) && (workloadConfig.targetRate > workload.viOriginalRate);
                      generateInterpolatedFrames = !workload.paused && displayRateAboveOriginal && !interpolationTargetKey.isEmpty();
@@ -1263,8 +1265,9 @@ index 5b0b726..71508cb 100644
 +                        static const bool interpDebug = getenv("JFG_DEBUG_INTERP") != nullptr;
 +                        static uint64_t debugCount = 0;
 +                        if (interpDebug && ((debugCount++ % 60) == 0)) {
-+                            fprintf(stderr, "[interp] workload: original %u target %u paused %d targetKey %d -> generate %d\n",
-+                                workload.viOriginalRate, workloadConfig.targetRate, workload.paused, !interpolationTargetKey.isEmpty(), generateInterpolatedFrames);
++                            fprintf(stderr, "[interp] workload: original %u target %u paused %d targetKey %d -> generate %d (matching %.2f ms, workload %.2f ms)\n",
++                                workload.viOriginalRate, workloadConfig.targetRate, workload.paused, !interpolationTargetKey.isEmpty(), generateInterpolatedFrames,
++                                matchingProfiler.average(), workloadProfiler.average());
 +                        }
 +                    }
  

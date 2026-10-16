@@ -18,6 +18,7 @@
 
 #include "recomp.h"
 #include "jfg_big_head.h"
+#include "jfg_interp_hooks.h"
 #include "jfg_player_tools.h"
 #include "jfg_skeleton.h"
 
@@ -74,6 +75,8 @@ void log_once(uint8_t* rdram, gpr model, int count, int head, const std::vector<
 }
 
 extern "C" void jfg_anim_matrices_done(uint8_t* rdram, recomp_context* ctx) {
+    // Frame interpolation records the joints' identities at the same point (it reads addresses, not the matrices).
+    jfg_interp_joints(rdram, ctx);
     if (!jfg::tools::cheats().big_head) {
         return;
     }

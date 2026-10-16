@@ -15,6 +15,11 @@ namespace jfg::interp {
 // Cameras, by role (world, sky, 2D, ... as the matrix provenance survey found them) and viewport (0-3).
 constexpr uint32_t camera_id(int role, int viewport) { return 0x100u + 0x10u * uint32_t(role) + uint32_t(viewport); }
 
+// A character joint: the model instance's serial and the joint index (joints < 64).
+constexpr uint32_t joint_id(uint32_t instance_serial, int joint) {
+    return 0x01000000u + 0x40u * instance_serial + uint32_t(joint);
+}
+
 // One game frame's identities.
 struct Frame {
     uint64_t sequence = 0;   // graphics tasks submitted before this one

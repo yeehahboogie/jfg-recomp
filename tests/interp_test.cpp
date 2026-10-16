@@ -124,5 +124,10 @@ int main() {
     serials.clear();
     assert(serials.get(0x801BC030) != b);
 
+    // Joint IDs: by instance serial and joint, in their own range, distinct across instances and joints.
+    assert(jfg::interp::joint_id(1, 0) == 0x01000040);
+    assert(jfg::interp::joint_id(1, 63) == 0x0100007F);
+    assert(jfg::interp::joint_id(2, 0) == 0x01000080);
+
     std::puts("interp_test: OK");
 }

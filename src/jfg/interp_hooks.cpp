@@ -87,3 +87,16 @@ extern "C" void jfg_interp_object_freed(uint8_t* rdram, recomp_context* ctx) {
 extern "C" void jfg_interp_instance_freed(uint8_t* rdram, recomp_context* ctx) {
     jfg::interp::instance_serials().release((uint32_t)ctx->r4);
 }
+
+extern "C" void jfg_interp_joints(uint8_t* rdram, recomp_context* ctx) {
+    const gpr instance = ctx->r20;
+    const gpr model = ctx->r19;
+    const int count = MEM_BU(0x4F, model);
+    if (count <= 0 || count > 64) return;
+    const uint32_t buffer = (uint32_t)MEM_W(0x10 + 4 * MEM_B(0xB, instance), instance) & 0x3FFFFFF;
+    if (buffer == 0) return;
+    const uint32_t serial = jfg::interp::instance_serials().get((uint32_t)instance);
+    for (int j = 0; j < count; j++) {
+        jfg::interp::recorder().add(buffer + 0x40 * j, jfg::interp::joint_id(serial, j));
+    }
+}
