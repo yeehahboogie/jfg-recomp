@@ -331,7 +331,8 @@ void zelda64::renderer::RT64Context::send_dl(const OSTask* task) {
     const uint32_t dl = task->t.data_ptr & 0x3FFFFFF;
     uint32_t discarded = 0;
     std::optional<jfg::interp::Frame> frame = jfg::interp::handoff().pop(dl, &discarded);
-    if (discarded > 0 || !frame) {
+    static uint32_t mismatches = 0;
+    if ((discarded > 0 || !frame) && (mismatches++ < 5 || mismatches % 300 == 0)) {
         fprintf(stderr, "[interp] display list %08X: %s (%u older frames discarded)\n", dl,
                 frame ? "paired late" : "no recorded frame", discarded);
     }

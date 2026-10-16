@@ -67,10 +67,12 @@ int main() {
     assert(!h.pop(0x220FE0));
 
     // Beyond max_pending, the oldest frames are dropped.
+    size_t dropped = 0;
     for (uint32_t i = 0; i < jfg::interp::Handoff::max_pending + 3; i++) {
         Frame x; x.sequence = 100 + i; x.dl_address = 0x1FB0C0;
-        h.push(std::move(x));
+        dropped += h.push(std::move(x));
     }
+    assert(dropped == 3);
     p = h.pop(0x1FB0C0, &discarded);
     assert(p && p->sequence == 103 && discarded == 0);
 
@@ -86,7 +88,7 @@ int main() {
     assert(!cuts.cut(cam, pose(30, 0x0300), 13)); // turning about 4 degrees a frame
     assert(cuts.cut(cam, pose(900, 0x0300), 14)); // a jump far beyond its pace
     assert(!cuts.cut(cam, pose(905, 0x0300), 15));
-    assert(cuts.cut(cam, pose(910, 0x2000), 16)); // turned 45 degrees in one frame
+    assert(!cuts.cut(cam, pose(910, 0x2000), 16)); // the player's own camera may turn 45 degrees in a frame
     assert(!cuts.cut(cam, pose(915, 0x2000), 17));
     assert(cuts.cut(cam, pose(920, 0x2000, 0x80123450), 18)); // another object now drives the camera (new shot)
     assert(!cuts.cut(cam, pose(925, 0x2000, 0x80123450), 19));
@@ -101,6 +103,14 @@ int main() {
     assert(cuts.cut(jfg::interp::camera_id(0, 1), pose(0, 0), 30));
     cuts.reset();
     assert(cuts.cut(cam, pose(1610, int16_t(-0x7FF0), 0x80123450), 29));
+
+    // The player's own camera (no cutscene or static camera driving it) turns as fast as the mouse allows: a flick
+    // is not a cut. A cutscene camera turning that far in one frame still is.
+    jfg::interp::CutDetector player;
+    assert(player.cut(cam, pose(0, 0), 40));
+    assert(!player.cut(cam, pose(0, 0x4000), 41));   // 90 degrees in one frame, nobody driving
+    assert(player.cut(cam, pose(0, 0x4000, 0x80123450), 42)); // a driver took over
+    assert(player.cut(cam, pose(0, 0x0000, 0x80123450), 43)); // driven and turned 90 degrees
 
     std::puts("interp_test: OK");
 }

@@ -35,7 +35,15 @@ extern "C" void jfg_interp_submit(uint8_t* rdram, recomp_context* ctx) {
     const bool main = dl == ((uint32_t)MEM_W(0, main_display_lists) & 0x3FFFFFF) ||
                       dl == ((uint32_t)MEM_W(4, main_display_lists) & 0x3FFFFFF);
     jfg::interp::Recorder& recorder = jfg::interp::recorder();
-    jfg::interp::handoff().push(main ? recorder.take(dl, rate) : recorder.empty(dl, rate));
+    jfg::interp::Frame frame = main ? recorder.take(dl, rate) : recorder.empty(dl, rate);
+    if (frame.conflicts > 0 && interp_debug) {
+        std::fprintf(stderr, "[interp] frame %llu: %u addresses recorded with two identities (drawn as-is)\n",
+                     (unsigned long long)frames_submitted, frame.conflicts);
+    }
+    const size_t dropped = jfg::interp::handoff().push(std::move(frame));
+    if (dropped > 0) {
+        std::fprintf(stderr, "[interp] renderer behind: dropped %zu recorded frames\n", dropped);
+    }
     if (main) frames_submitted++;
 }
 

@@ -47,10 +47,15 @@ Frame Recorder::empty(uint32_t dl_address, uint16_t rate) {
     return frame;
 }
 
-void Handoff::push(Frame frame) {
+size_t Handoff::push(Frame frame) {
     std::lock_guard lock(mutex_);
     pending_.push_back(std::move(frame));
-    while (pending_.size() > max_pending) pending_.pop_front();
+    size_t dropped = 0;
+    while (pending_.size() > max_pending) {
+        pending_.pop_front();
+        dropped++;
+    }
+    return dropped;
 }
 
 std::optional<Frame> Handoff::pop(uint32_t dl_address, uint32_t* discarded) {
@@ -75,8 +80,9 @@ bool CutDetector::cut(uint32_t id, const CameraPose& pose, uint64_t frame) {
         next.step = std::sqrt(dx * dx + dy * dy + dz * dz);
         auto turn = [](int16_t a, int16_t b) { return std::abs(int(int16_t(uint16_t(a) - uint16_t(b)))); };
         const bool jumped = next.step > min_jump && next.step > 4.f * prev.step + 16.f;
-        const bool turned = turn(pose.yaw, prev.pose.yaw) > max_turn || turn(pose.pitch, prev.pose.pitch) > max_turn ||
-                            turn(pose.roll, prev.pose.roll) > max_turn;
+        // Only a driven camera (cutscene, static) cuts on a turn: the player's own camera turns as fast as input allows.
+        const bool turned = pose.driver != 0 && (turn(pose.yaw, prev.pose.yaw) > max_turn ||
+                            turn(pose.pitch, prev.pose.pitch) > max_turn || turn(pose.roll, prev.pose.roll) > max_turn);
         next.cut = jumped || turned || pose.driver != prev.pose.driver;
     }
     last_[id] = next;

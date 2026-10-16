@@ -45,7 +45,8 @@ private:
 class Handoff {
 public:
     static constexpr size_t max_pending = 8;
-    void push(Frame frame);
+    // Returns how many old frames were dropped to stay within max_pending.
+    size_t push(Frame frame);
     // The oldest pending frame for this display list. Frames queued before it are discarded and counted; if none
     // matches, nothing is removed.
     std::optional<Frame> pop(uint32_t dl_address, uint32_t* discarded = nullptr);
@@ -64,7 +65,8 @@ struct CameraPose {
 };
 
 // Decides when a camera's motion into a frame must not be interpolated: it's new or wasn't seen last frame, it
-// jumped far beyond its recent pace, it turned more than 30 degrees, or another driver took over.
+// jumped far beyond its recent pace, another driver took over, or a driven camera (cutscene, static) turned more
+// than 30 degrees. The player's own camera turns as fast as input allows.
 class CutDetector {
 public:
     static constexpr float min_jump = 64.f; // world units

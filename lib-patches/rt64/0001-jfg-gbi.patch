@@ -90,10 +90,10 @@ index 69c35d2..df2ebdd 100644
  
 diff --git a/src/gbi/rt64_gbi_f3djfg.cpp b/src/gbi/rt64_gbi_f3djfg.cpp
 new file mode 100644
-index 0000000..32307ac
+index 0000000..5c93fbd
 --- /dev/null
 +++ b/src/gbi/rt64_gbi_f3djfg.cpp
-@@ -0,0 +1,384 @@
+@@ -0,0 +1,385 @@
 +//
 +// RT64
 +//
@@ -301,6 +301,7 @@ index 0000000..32307ac
 +            if ((slot == 0) && !multiply) {
 +                rsp->dkr.viewProj0 = matrix;
 +                rsp->dkr.slotAddress[0] = address;
++                rsp->dkr.viewProj0Address = address;
 +                rsp->setViewProjDKR(matrix, address);
 +                rsp->dkr.viewProjIsSlot0 = true;
 +                rsp->dkr.slots[0] = hlslpp::float4x4::identity();
@@ -737,7 +738,7 @@ index 7bec992..a95040f 100644
  
      struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..73b172c 100644
+index ea0c1ac..697bd69 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -5,6 +5,8 @@
@@ -757,7 +758,7 @@ index ea0c1ac..73b172c 100644
  #include "rt64_state.h"
  
  //#define LOG_SPECIAL_MATRIX_OPERATIONS
-@@ -38,6 +41,31 @@ namespace RT64 {
+@@ -38,6 +41,32 @@ namespace RT64 {
      }
  
      void RSP::reset() {
@@ -775,6 +776,7 @@ index ea0c1ac..73b172c 100644
 +        dkr.slots.fill(hlslpp::float4x4::identity());
 +        dkr.slotAbsolute.fill(false);
 +        dkr.slotAddress.fill(0);
++        dkr.viewProj0Address = 0;
 +        dkr.viewProj0 = hlslpp::float4x4::identity();
 +        dkr.viewProjIsSlot0 = true;
 +        dkr.activeSlot = 0;
@@ -789,7 +791,7 @@ index ea0c1ac..73b172c 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +408,271 @@ namespace RT64 {
+@@ -380,6 +409,271 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -1043,7 +1045,7 @@ index ea0c1ac..73b172c 100644
 +        }
 +        else {
 +            if (!dkr.viewProjIsSlot0) {
-+                setViewProjDKR(dkr.viewProj0, dkr.slotAddress[0]);
++                setViewProjDKR(dkr.viewProj0, dkr.viewProj0Address);
 +                dkr.viewProjIsSlot0 = true;
 +            }
 +            modelMatrixStack[modelMatrixStackSize - 1] = dkr.slots[slot];
@@ -1062,10 +1064,10 @@ index ea0c1ac..73b172c 100644
          const hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
          const bool perspProj = (projMatrix[3][3] == 0.0f) && (abs(projMatrix[1][1]) > 1e-6f);
 diff --git a/src/hle/rt64_rsp.h b/src/hle/rt64_rsp.h
-index 1611b7a..81b84a9 100644
+index 1611b7a..f32449a 100644
 --- a/src/hle/rt64_rsp.h
 +++ b/src/hle/rt64_rsp.h
-@@ -217,6 +217,34 @@ namespace RT64 {
+@@ -217,6 +217,35 @@ namespace RT64 {
              bool forceBranch;
          } extended;
  
@@ -1076,6 +1078,7 @@ index 1611b7a..81b84a9 100644
 +            std::array<hlslpp::float4x4, 4> slots;
 +            std::array<bool, 4> slotAbsolute;
 +            std::array<uint32_t, 4> slotAddress;
++            uint32_t viewProj0Address = 0; // where the camera (slot 0, no multiply) was loaded from
 +            // Slot 0's matrix (the camera's view-projection) and whether it is the current projection: absolute
 +            // slots become the projection themselves while active.
 +            hlslpp::float4x4 viewProj0;
@@ -1100,7 +1103,7 @@ index 1611b7a..81b84a9 100644
          RSP(State *state);
          void reset();
          Projection::Type getCurrentProjectionType() const;
-@@ -239,6 +267,23 @@ namespace RT64 {
+@@ -239,6 +268,23 @@ namespace RT64 {
          void setVertexPD(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexEXV1(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexColorPD(uint32_t address);
