@@ -143,6 +143,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/cic_hook.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/fpu_mode.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/big_head.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/interp_probe.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/skeleton.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/interp.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/input_script.cpp

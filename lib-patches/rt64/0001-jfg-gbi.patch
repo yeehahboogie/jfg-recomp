@@ -90,10 +90,10 @@ index 69c35d2..df2ebdd 100644
  
 diff --git a/src/gbi/rt64_gbi_f3djfg.cpp b/src/gbi/rt64_gbi_f3djfg.cpp
 new file mode 100644
-index 0000000..bf4b6ec
+index 0000000..32307ac
 --- /dev/null
 +++ b/src/gbi/rt64_gbi_f3djfg.cpp
-@@ -0,0 +1,374 @@
+@@ -0,0 +1,384 @@
 +//
 +// RT64
 +//
@@ -142,6 +142,9 @@ index 0000000..bf4b6ec
 +        // JFG_DEBUG_XFORM=1: a shadow of GLideN64's DKR matrix-slot model (slot k = mtx, or mtx x slot 0 as it is
 +        // when loaded; vertices use the active slot), compared against RT64's transformed vertex positions.
 +        static const bool xformDebug = std::getenv("JFG_DEBUG_XFORM") != nullptr;
++        // JFG_DEBUG_MTXSRC=<frame>: log every matrix load of the tasks around that frame (tools/diag/mtx-provenance.py).
++        const long mtxsrcFrame = std::getenv("JFG_DEBUG_MTXSRC") ? std::atol(std::getenv("JFG_DEBUG_MTXSRC")) : -1;
++        int64_t mtxsrcLastTask = -1000;
 +        static hlslpp::float4x4 shadowSlots[4] = { hlslpp::float4x4::identity(), hlslpp::float4x4::identity(), hlslpp::float4x4::identity(), hlslpp::float4x4::identity() };
 +        static uint32_t shadowActive = 0;
 +        static uint64_t xformChecked = 0, xformBad = 0;
@@ -280,6 +283,13 @@ index 0000000..bf4b6ec
 +            const uint32_t address = rsp->dkr.mtxOffset + exactAddress(rsp, (*dl)->w1);
 +            const hlslpp::float4x4 matrix = reinterpret_cast<const FixedMatrix *>(state->fromRDRAM(address))->toMatrix4x4();
 +            const uint32_t slot = index & 3;
++            if ((mtxsrcFrame >= 0) && (rsp->jfgTask >= mtxsrcFrame - 2) && (rsp->jfgTask <= mtxsrcFrame + 2)) {
++                if (rsp->jfgTask != mtxsrcLastTask) {
++                    fprintf(stderr, "[mtxsrc] task %lld\n", (long long)rsp->jfgTask);
++                    mtxsrcLastTask = rsp->jfgTask;
++                }
++                fprintf(stderr, "[mtxsrc] task %lld load slot %u mul %d addr %08X\n", (long long)rsp->jfgTask, index, multiply, address);
++            }
 +            if (debugNext()) {
 +                fprintf(stderr, "[gbi] DMA_MTX w0=%08X index=%u multiply=%d addr=%08X", w0, index, multiply, address);
 +                for (int r = 0; r < 4; r++) fprintf(stderr, " [%.3f %.3f %.3f %.3f]", matrix[r][0], matrix[r][1], matrix[r][2], matrix[r][3]);
@@ -661,13 +671,14 @@ index 7bec992..a95040f 100644
  
      struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..d61bfe0 100644
+index ea0c1ac..7ddb595 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
-@@ -38,6 +38,20 @@ namespace RT64 {
+@@ -38,6 +38,21 @@ namespace RT64 {
      }
  
      void RSP::reset() {
++        jfgTask++;
 +        dkr.slots.fill(hlslpp::float4x4::identity());
 +        dkr.slotAbsolute.fill(false);
 +        dkr.slotAddress.fill(0);
@@ -685,7 +696,7 @@ index ea0c1ac..d61bfe0 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +394,233 @@ namespace RT64 {
+@@ -380,6 +395,233 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -920,10 +931,10 @@ index ea0c1ac..d61bfe0 100644
          const hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
          const bool perspProj = (projMatrix[3][3] == 0.0f) && (abs(projMatrix[1][1]) > 1e-6f);
 diff --git a/src/hle/rt64_rsp.h b/src/hle/rt64_rsp.h
-index 1611b7a..05b0a60 100644
+index 1611b7a..ff730eb 100644
 --- a/src/hle/rt64_rsp.h
 +++ b/src/hle/rt64_rsp.h
-@@ -217,6 +217,30 @@ namespace RT64 {
+@@ -217,6 +217,34 @@ namespace RT64 {
              bool forceBranch;
          } extended;
  
@@ -951,10 +962,14 @@ index 1611b7a..05b0a60 100644
 +            int dlCount = 0;
 +        } dkr;
 +
++        // Jet Force Gemini: index of the graphics task being processed (send_dl resets the RSP once per task; the
++        // reset at start-up leaves it at -1).
++        int64_t jfgTask = -2;
++
          RSP(State *state);
          void reset();
          Projection::Type getCurrentProjectionType() const;
-@@ -239,6 +263,12 @@ namespace RT64 {
+@@ -239,6 +267,12 @@ namespace RT64 {
          void setVertexPD(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexEXV1(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexColorPD(uint32_t address);
