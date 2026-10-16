@@ -577,10 +577,10 @@ index dccaa87..343a2b9 100644
              }
 diff --git a/src/hle/rt64_jfg_frame.h b/src/hle/rt64_jfg_frame.h
 new file mode 100644
-index 0000000..515ee5f
+index 0000000..56ff98c
 --- /dev/null
 +++ b/src/hle/rt64_jfg_frame.h
-@@ -0,0 +1,40 @@
+@@ -0,0 +1,46 @@
 +//
 +// RT64
 +//
@@ -602,10 +602,16 @@ index 0000000..515ee5f
 +        JFG_SKIP_ALL = JFG_SKIP_POSITION | JFG_SKIP_ROTATION | JFG_SKIP_SCALE,
 +    };
 +
++    enum : uint8_t {
++        // An absolute world draw (model x the world camera's view-projection): drawn as its model under the camera.
++        JFG_FLAG_UNDER_CAMERA = 1 << 0,
++    };
++
 +    struct JfgMatrixIdentity {
 +        uint32_t address; // physical RDRAM address of the 64-byte matrix the display list loads
 +        uint32_t id;      // stable across frames; never G_EX_ID_IGNORE (0) or G_EX_ID_AUTO (0xFFFFFFFF)
 +        uint8_t skip;     // JFG_SKIP_* bits: components not interpolated into this frame
++        uint8_t flags;    // JFG_FLAG_* bits
 +    };
 +
 +    struct JfgFrameTable {
@@ -623,10 +629,10 @@ index 0000000..515ee5f
 +};
 diff --git a/src/hle/rt64_jfg_groups.h b/src/hle/rt64_jfg_groups.h
 new file mode 100644
-index 0000000..a0c03ed
+index 0000000..7d27e3f
 --- /dev/null
 +++ b/src/hle/rt64_jfg_groups.h
-@@ -0,0 +1,46 @@
+@@ -0,0 +1,51 @@
 +//
 +// RT64
 +//
@@ -671,6 +677,11 @@ index 0000000..a0c03ed
 +        group.vertexInterpolation = G_EX_COMPONENT_SKIP;
 +        group.tileInterpolation = G_EX_COMPONENT_SKIP;
 +        return group;
++    }
++
++    // An absolute draw's model matrix: absolute = model x viewProj (row vectors), so model = absolute x inverse(viewProj).
++    inline hlslpp::float4x4 jfgModelUnderCamera(const hlslpp::float4x4 &absolute, const hlslpp::float4x4 &viewProj) {
++        return hlslpp::mul(absolute, hlslpp::inverse(viewProj));
 +    }
 +};
 diff --git a/src/hle/rt64_present.h b/src/hle/rt64_present.h
@@ -740,7 +751,7 @@ index 7bec992..a95040f 100644
  
      struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..697bd69 100644
+index ea0c1ac..e3af76f 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -5,6 +5,8 @@
@@ -793,7 +804,7 @@ index ea0c1ac..697bd69 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +409,271 @@ namespace RT64 {
+@@ -380,6 +409,284 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -1038,12 +1049,25 @@ index ea0c1ac..697bd69 100644
 +    void RSP::applyMatrixSlotDKR() {
 +        const uint32_t slot = dkr.activeSlot & 3;
 +        if (dkr.slotAbsolute[slot]) {
-+            // A complete transform: make it the projection with an identity model, rather than recovering a world
-+            // matrix through the inverse of the camera's (which drops these draws).
-+            setViewProjDKR(dkr.slots[slot], dkr.slotAddress[slot], false);
-+            dkr.viewProjIsSlot0 = false;
-+            modelMatrixStack[modelMatrixStackSize - 1] = hlslpp::float4x4::identity();
-+            setModelGroupIgnoreDKR();
++            const JfgFrameTable *table = state->jfgFrame;
++            const JfgMatrixIdentity *entry = ((table != nullptr) && table->enabled) ? table->find(dkr.slotAddress[slot]) : nullptr;
++            if ((entry != nullptr) && (entry->flags & JFG_FLAG_UNDER_CAMERA) && (dkr.viewProj0Address != 0)) {
++                // An absolute world draw the game's hooks identified (model x the world camera): its model under the
++                // ID'd camera, so it moves with the interpolated camera instead of against it.
++                if (!dkr.viewProjIsSlot0) {
++                    setViewProjDKR(dkr.viewProj0, dkr.viewProj0Address);
++                    dkr.viewProjIsSlot0 = true;
++                }
++                modelMatrixStack[modelMatrixStackSize - 1] = jfgModelUnderCamera(dkr.slots[slot], dkr.viewProj0);
++                setModelGroupDKR(dkr.slotAddress[slot]);
++            }
++            else {
++                // A complete transform: make it the projection with an identity model, drawn as-is.
++                setViewProjDKR(dkr.slots[slot], dkr.slotAddress[slot], false);
++                dkr.viewProjIsSlot0 = false;
++                modelMatrixStack[modelMatrixStackSize - 1] = hlslpp::float4x4::identity();
++                setModelGroupIgnoreDKR();
++            }
 +        }
 +        else {
 +            if (!dkr.viewProjIsSlot0) {

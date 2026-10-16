@@ -1,4 +1,5 @@
 #include <cassert>
+#include <cmath>
 #include <cstdio>
 #include "hle/rt64_jfg_groups.h"
 
@@ -32,6 +33,24 @@ int main() {
         assert(g.matrixId == G_EX_ID_IGNORE);
         assert(g.tileInterpolation == G_EX_COMPONENT_SKIP);
         assert(g.vertexInterpolation == G_EX_COMPONENT_SKIP);
+    }
+    // An absolute draw is model x view-projection (row vectors); the model comes back as absolute x inverse(vp).
+    const hlslpp::float4x4 vp(1.5f, 0.0f, 0.0f, 0.0f,
+                              0.0f, 2.0f, 0.0f, 0.0f,
+                              0.0f, 0.0f, -1.001f, -1.0f,
+                              -40.0f, 50.0f, 1400.0f, 1420.0f);
+    const hlslpp::float4x4 model(0.0f, 0.0f, -0.5f, 0.0f,
+                                 0.0f, 0.5f, 0.0f, 0.0f,
+                                 0.5f, 0.0f, 0.0f, 0.0f,
+                                 3.0f, 176.0f, 1495.0f, 1.0f);
+    const hlslpp::float4x4 absolute = hlslpp::mul(model, vp);
+    const hlslpp::float4x4 back = jfgModelUnderCamera(absolute, vp);
+    for (int r = 0; r < 4; r++) {
+        // float precision, relative to the row's largest value (a translation row with 1495 in it comes back within
+        // about 0.004 in every element)
+        float scale = 1.0f;
+        for (int c = 0; c < 4; c++) scale = std::fmax(scale, std::fabs(model[r][c]));
+        for (int c = 0; c < 4; c++) assert(std::fabs(back[r][c] - model[r][c]) <= 1e-5f * scale);
     }
     std::puts("interp_groups_test: OK");
 }

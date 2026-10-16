@@ -20,6 +20,18 @@ constexpr gpr static_camera = (gpr)(int32_t)0x800FB084;
 uint64_t frames_submitted = 0;
 const bool interp_debug = std::getenv("JFG_DEBUG_INTERP") != nullptr;
 
+constexpr gpr model_view_proj = (gpr)(int32_t)0x800FB038; // model x view-projection: an absolute world draw's source
+constexpr gpr view_proj = (gpr)(int32_t)0x800FAAF0;       // the current view-projection
+uint8_t world_view_proj[64];                              // the world camera's, as camSetProjMtx made it
+bool camera_conversion_next = false;                      // set at camSetProjMtx entry; its mathMtxF2L follows
+
+void read_matrix(uint8_t* rdram, gpr address, uint8_t out[64]) {
+    for (int i = 0; i < 16; i++) {
+        const uint32_t word = (uint32_t)MEM_W(4 * i, address);
+        std::memcpy(out + 4 * i, &word, 4);
+    }
+}
+
 float read_f32(uint8_t* rdram, gpr address) {
     const uint32_t bits = (uint32_t)MEM_W(0, address);
     float f;
@@ -59,6 +71,7 @@ extern "C" void jfg_interp_camera(uint8_t* rdram, recomp_context* ctx) {
     pose.driver = (uint32_t)MEM_W(4 * number, anim_cameras) ^ ((uint32_t)MEM_W(0, static_camera) << 1);
     const uint32_t id = jfg::interp::camera_id(0, number);
     const bool cut = jfg::interp::cut_detector().cut(id, pose, frames_submitted);
+    camera_conversion_next = true;
     const uint32_t matrix = (uint32_t)MEM_W(0, ctx->r5) & 0x3FFFFFF;
     jfg::interp::recorder().add(matrix, id, cut ? RT64::JFG_SKIP_ALL : 0);
     static uint64_t logged_frame = ~0ull;
@@ -99,4 +112,32 @@ extern "C" void jfg_interp_joints(uint8_t* rdram, recomp_context* ctx) {
     for (int j = 0; j < count; j++) {
         jfg::interp::recorder().add(buffer + 0x40 * j, jfg::interp::joint_id(serial, j));
     }
+}
+
+extern "C" void jfg_interp_owner_enter(uint8_t* rdram, recomp_context* ctx) {
+    jfg::interp::owners().push((uint32_t)ctx->r7);
+}
+
+extern "C" void jfg_interp_owner_leave(uint8_t* rdram, recomp_context* ctx) {
+    jfg::interp::owners().pop();
+}
+
+extern "C" void jfg_interp_f2l(uint8_t* rdram, recomp_context* ctx) {
+    const gpr source = ctx->r4;
+    if (source == view_proj && camera_conversion_next) {
+        camera_conversion_next = false;
+        read_matrix(rdram, view_proj, world_view_proj);
+        return;
+    }
+    if (source != model_view_proj || jfg::interp::owners().empty()) return;
+    // Only draws under the world camera (HUD 3D objects use their own view-projection).
+    uint8_t current[64];
+    read_matrix(rdram, view_proj, current);
+    if (std::memcmp(current, world_view_proj, sizeof current) != 0) return;
+    const uint32_t push = jfg::interp::owners().next_push();
+    if (push == jfg::interp::OwnerStack::no_push) return;
+    const uint32_t serial = jfg::interp::object_serials().get(jfg::interp::owners().owner());
+    // $a1 is the destination matrix itself (mathMtxF2L stores through it: sh $t1, 0x18($a1) at 0x80048DD4).
+    jfg::interp::recorder().add((uint32_t)ctx->r5 & 0x3FFFFFF, jfg::interp::object_push_id(serial, push), 0,
+                                RT64::JFG_FLAG_UNDER_CAMERA);
 }

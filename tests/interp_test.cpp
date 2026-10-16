@@ -129,5 +129,27 @@ int main() {
     assert(jfg::interp::joint_id(1, 63) == 0x0100007F);
     assert(jfg::interp::joint_id(2, 0) == 0x01000080);
 
+    // The owner of absolute pushes: the object objPrintObject is drawing (nested draws restore the outer one), and
+    // nobody outside it. Each owner numbers its pushes from 0; beyond 15 they get no identity.
+    jfg::interp::OwnerStack owners;
+    assert(owners.empty());
+    owners.push(0x801BB2C0);
+    assert(owners.owner() == 0x801BB2C0 && owners.next_push() == 0 && owners.next_push() == 1);
+    owners.push(0x801BDEB0);              // its gun, drawn inside it
+    assert(owners.owner() == 0x801BDEB0 && owners.next_push() == 0);
+    owners.pop();
+    assert(owners.owner() == 0x801BB2C0 && owners.next_push() == 2);
+    for (int i = 3; i < 16; i++) owners.next_push();
+    assert(owners.next_push() == jfg::interp::OwnerStack::no_push); // the 17th push
+    owners.pop();
+    assert(owners.empty());
+    owners.pop();                         // unbalanced pops are harmless
+    assert(owners.empty());
+    assert(jfg::interp::object_push_id(1, 0) == 0x02000010 && jfg::interp::object_push_id(1, 15) == 0x0200001F);
+    // A flagged entry keeps its flag through take().
+    rec.add(0x6000, 0x02000010, 0, RT64::JFG_FLAG_UNDER_CAMERA);
+    Frame flagged = rec.take(0x1FB0C0, 30);
+    assert(flagged.entries.size() == 1 && flagged.entries[0].flags == RT64::JFG_FLAG_UNDER_CAMERA);
+
     std::puts("interp_test: OK");
 }

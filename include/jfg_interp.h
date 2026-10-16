@@ -20,6 +20,37 @@ constexpr uint32_t joint_id(uint32_t instance_serial, int joint) {
     return 0x01000000u + 0x40u * instance_serial + uint32_t(joint);
 }
 
+// An absolute world draw: the owning object's serial and the push number within its draw (pushes < 16).
+constexpr uint32_t object_push_id(uint32_t object_serial, uint32_t push) {
+    return 0x02000000u + 0x10u * object_serial + push;
+}
+
+// The objects objPrintObject is drawing, innermost last; absolute pushes belong to the innermost.
+class OwnerStack {
+public:
+    static constexpr uint32_t no_push = 0xFFFFFFFFu;
+    void push(uint32_t object) { stack_.push_back({object, 0}); }
+    void pop() {
+        if (!stack_.empty()) stack_.pop_back();
+    }
+    bool empty() const { return stack_.empty(); }
+    uint32_t owner() const { return stack_.back().object; }
+    // The next push number for the innermost owner, or no_push beyond 15.
+    uint32_t next_push() {
+        uint32_t& n = stack_.back().pushes;
+        return n < 16 ? n++ : no_push;
+    }
+
+private:
+    struct Owner {
+        uint32_t object;
+        uint32_t pushes;
+    };
+    std::vector<Owner> stack_;
+};
+
+OwnerStack& owners();
+
 // One game frame's identities.
 struct Frame {
     uint64_t sequence = 0;   // graphics tasks submitted before this one
@@ -32,7 +63,7 @@ struct Frame {
 // Collects the frame being built. Game thread only.
 class Recorder {
 public:
-    void add(uint32_t address, uint32_t id, uint8_t skip = 0);
+    void add(uint32_t address, uint32_t id, uint8_t skip = 0, uint8_t flags = 0);
     // The frame recorded since the last take, finished (sorted, conflicts dropped); starts a new one.
     Frame take(uint32_t dl_address, uint16_t rate);
     // An empty frame for a display list the recording isn't for (gameplay's small module display list, submitted

@@ -5,8 +5,8 @@
 #include <cstdlib>
 
 namespace jfg::interp {
-void Recorder::add(uint32_t address, uint32_t id, uint8_t skip) {
-    entries_.push_back({address, id, skip});
+void Recorder::add(uint32_t address, uint32_t id, uint8_t skip, uint8_t flags) {
+    entries_.push_back({address, id, skip, flags});
 }
 
 Frame Recorder::take(uint32_t dl_address, uint16_t rate) {
@@ -27,7 +27,10 @@ Frame Recorder::take(uint32_t dl_address, uint16_t rate) {
             frame.conflicts++;
         } else {
             RT64::JfgMatrixIdentity e = entries_[i];
-            for (size_t k = i + 1; k < j; k++) e.skip |= entries_[k].skip;
+            for (size_t k = i + 1; k < j; k++) {
+                e.skip |= entries_[k].skip;
+                e.flags |= entries_[k].flags;
+            }
             frame.entries.push_back(e);
         }
         i = j;
@@ -120,6 +123,11 @@ SerialMap& object_serials() {
 SerialMap& instance_serials() {
     static SerialMap m;
     return m;
+}
+
+OwnerStack& owners() {
+    static OwnerStack o;
+    return o;
 }
 
 Recorder& recorder() {

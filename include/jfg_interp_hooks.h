@@ -19,6 +19,11 @@ void jfg_interp_object_freed(uint8_t* rdram, recomp_context* ctx);
 void jfg_interp_instance_freed(uint8_t* rdram, recomp_context* ctx);
 /* At the end of modGenAnimMatrices (0x8003DD9C): the instance's joint matrices are ready ($s4 instance, $s3 model). */
 void jfg_interp_joints(uint8_t* rdram, recomp_context* ctx);
+/* Entry and exit of objPrintObject (0x8000DB94, object in $a3; single exit at 0x8000DC1C). */
+void jfg_interp_owner_enter(uint8_t* rdram, recomp_context* ctx);
+void jfg_interp_owner_leave(uint8_t* rdram, recomp_context* ctx);
+/* Entry of mathMtxF2L (0x80048D84): the float matrix at $a0 is converted into the fixed-point matrix at $a1. */
+void jfg_interp_f2l(uint8_t* rdram, recomp_context* ctx);
 #ifdef __cplusplus
 }
 #endif

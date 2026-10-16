@@ -158,7 +158,7 @@ text = "jfg_probe_submit(rdram, ctx); jfg_interp_submit(rdram, ctx);"
 
 [[patches.hook]]
 func = "func_80048D84"          # mathMtxF2L
-text = "jfg_probe_f2l(rdram, ctx);"
+text = "jfg_probe_f2l(rdram, ctx); jfg_interp_f2l(rdram, ctx);"
 
 [[patches.hook]]
 func = "func_80042470"          # camConvertMatrixList: queues float matrices camTick converts in place
@@ -186,3 +186,13 @@ text = "jfg_interp_object_freed(rdram, ctx);"
 [[patches.hook]]
 func = "func_8003C7C4"          # modFreeModel
 text = "jfg_interp_instance_freed(rdram, ctx);"
+
+# Frame interpolation: the object objPrintObject is drawing owns the absolute pushes made inside it.
+[[patches.hook]]
+func = "func_8000DB94"          # objPrintObject (object in $a3)
+text = "jfg_interp_owner_enter(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8000DB94"          # objPrintObject's single exit
+before_vram = 0x8000DC1C
+text = "jfg_interp_owner_leave(rdram, ctx);"
