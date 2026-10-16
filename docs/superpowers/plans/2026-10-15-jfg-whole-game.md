@@ -58,7 +58,7 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 | `levelGetNumber` → current level `*0x800FB114`; level count | `0x800446BC`; `*0x800FB124` |
 | `levelGetName(n)` (loads asset 0x1E) | `0x8004471C` |
 | `mainGetNextLevel` / `mainSyncNextLevel` / `mainGetCurrentLevel` | `0x800468DC` / `0x80047570` / `0x800483B8` |
-| `allLevelCheat` / `invulnerabilityCheat` / `allweaponsCheat` | `0x800A5068` / `0x800A5070` / `0x800A5078` |
+| `allLevelCheat` / `invulnerabilityCheat` / `allweaponsCheat` (bytes, read with `lbu`) | `0x800A5068` / `0x800A5070` / `0x800A5078` |
 | Map screen (calls `mainChangeLevel(level, entry, 0, 0x10, …)`) | `frontMap` `m009_00690` |
 | Symbol dump | `python3 build/diag/syms.py` (reads the ROM's own table) |
 | Object list: `ObjList` (pointer array), count | `*0x800F2CA4`, `*0x800F2CA8` (`objGetObject(i)` `0x80005E58`) |

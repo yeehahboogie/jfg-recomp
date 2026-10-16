@@ -202,10 +202,11 @@ jfg::tools::Cheats& cheat_state() {
     return state;
 }
 
-// A cheat flag follows its switch: written while on, cleared once when switched off.
+// A cheat flag follows its switch: written while on, cleared once when switched off. The flags are bytes: the game
+// reads them with lbu (the characters' control code for invulnerability and weapons, frontMap for levels).
 void apply_flag(uint8_t* rdram, gpr flag, bool on, bool& was_on) {
-    if (on) MEM_W(0, flag) = 1;
-    else if (was_on) MEM_W(0, flag) = 0;
+    if (on) MEM_B(0, flag) = 1;
+    else if (was_on) MEM_B(0, flag) = 0;
     was_on = on;
 }
 
