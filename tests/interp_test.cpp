@@ -112,5 +112,17 @@ int main() {
     assert(player.cut(cam, pose(0, 0x4000, 0x80123450), 42)); // a driver took over
     assert(player.cut(cam, pose(0, 0x0000, 0x80123450), 43)); // driven and turned 90 degrees
 
+    // Serials: one per live pointer, a fresh one after the pointer is released (a new object at a freed address).
+    jfg::interp::SerialMap serials;
+    const uint32_t a = serials.get(0x801BB2C0), b = serials.get(0x801BC030);
+    assert(a != 0 && b != 0 && a != b);
+    assert(serials.get(0x801BB2C0) == a);
+    serials.release(0x801BB2C0);
+    const uint32_t a2 = serials.get(0x801BB2C0);
+    assert(a2 != a && a2 != b && a2 != 0);
+    serials.release(0x80000000); // releasing an unknown pointer is harmless
+    serials.clear();
+    assert(serials.get(0x801BC030) != b);
+
     std::puts("interp_test: OK");
 }

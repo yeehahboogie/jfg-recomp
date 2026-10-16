@@ -172,3 +172,17 @@ text = "jfg_interp_camera(rdram, ctx);"
 [[patches.hook]]
 func = "func_8003F640"          # camInit (level load)
 text = "jfg_interp_level_start(rdram, ctx);"
+
+# Frame interpolation: object and model-instance lifetimes, so a reused address gets a fresh identity.
+[[patches.hook]]
+func = "func_80005F14"          # objSetupObject: the common return, new object in $v0
+before_vram = 0x80006E04
+text = "jfg_interp_object_created(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_80007C68"          # destroys an object (objDoFrees, objFreeAll)
+text = "jfg_interp_object_freed(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8003C7C4"          # modFreeModel
+text = "jfg_interp_instance_freed(rdram, ctx);"

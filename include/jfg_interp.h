@@ -86,6 +86,22 @@ private:
 };
 
 CutDetector& cut_detector();
+
+// Serial numbers for game objects and model instances, by pointer: stable while the pointer is live, fresh once the
+// game frees it (an object or instance later created at the same address must not pair with the old one).
+class SerialMap {
+public:
+    uint32_t get(uint32_t pointer);
+    void release(uint32_t pointer);
+    void clear();
+
+private:
+    std::unordered_map<uint32_t, uint32_t> serials_;
+    uint32_t next_ = 1;
+};
+
+SerialMap& object_serials();
+SerialMap& instance_serials();
 Recorder& recorder();
 Handoff& handoff();
 }

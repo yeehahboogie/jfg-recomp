@@ -98,6 +98,30 @@ CutDetector& cut_detector() {
     return d;
 }
 
+uint32_t SerialMap::get(uint32_t pointer) {
+    auto [it, inserted] = serials_.try_emplace(pointer, next_);
+    if (inserted) next_ = next_ + 1 == 0 ? 1 : next_ + 1;
+    return it->second;
+}
+
+void SerialMap::release(uint32_t pointer) {
+    serials_.erase(pointer);
+}
+
+void SerialMap::clear() {
+    serials_.clear();
+}
+
+SerialMap& object_serials() {
+    static SerialMap m;
+    return m;
+}
+
+SerialMap& instance_serials() {
+    static SerialMap m;
+    return m;
+}
+
 Recorder& recorder() {
     static Recorder r;
     return r;

@@ -72,4 +72,18 @@ extern "C" void jfg_interp_camera(uint8_t* rdram, recomp_context* ctx) {
 
 extern "C" void jfg_interp_level_start(uint8_t* rdram, recomp_context* ctx) {
     jfg::interp::cut_detector().reset();
+    jfg::interp::object_serials().clear();
+    jfg::interp::instance_serials().clear();
+}
+
+extern "C" void jfg_interp_object_created(uint8_t* rdram, recomp_context* ctx) {
+    if (ctx->r2 != 0) jfg::interp::object_serials().release((uint32_t)ctx->r2);
+}
+
+extern "C" void jfg_interp_object_freed(uint8_t* rdram, recomp_context* ctx) {
+    jfg::interp::object_serials().release((uint32_t)ctx->r4);
+}
+
+extern "C" void jfg_interp_instance_freed(uint8_t* rdram, recomp_context* ctx) {
+    jfg::interp::instance_serials().release((uint32_t)ctx->r4);
 }
