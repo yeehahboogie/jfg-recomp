@@ -29,6 +29,9 @@ public:
     void add(uint32_t address, uint32_t id, uint8_t skip = 0);
     // The frame recorded since the last take, finished (sorted, conflicts dropped); starts a new one.
     Frame take(uint32_t dl_address, uint16_t rate);
+    // An empty frame for a display list the recording isn't for (gameplay's small module display list, submitted
+    // between two main ones while the next main frame is being built); what's recorded is kept.
+    Frame empty(uint32_t dl_address, uint16_t rate);
 
 private:
     std::vector<RT64::JfgMatrixIdentity> entries_;

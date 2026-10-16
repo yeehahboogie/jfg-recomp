@@ -34,6 +34,14 @@ Frame Recorder::take(uint32_t dl_address, uint16_t rate) {
     return frame;
 }
 
+Frame Recorder::empty(uint32_t dl_address, uint16_t rate) {
+    Frame frame;
+    frame.sequence = next_sequence_++;
+    frame.dl_address = dl_address;
+    frame.rate = rate;
+    return frame;
+}
+
 void Handoff::push(Frame frame) {
     std::lock_guard lock(mutex_);
     pending_.push_back(std::move(frame));

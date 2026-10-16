@@ -33,6 +33,14 @@ int main() {
     Frame g = rec.take(0x220FE0, 20);
     assert(g.sequence == 1 && g.entries.empty() && g.conflicts == 0 && g.rate == 20);
 
+    // A submit for another display list (gameplay's small module one) gets an empty frame and leaves what's being
+    // recorded for the main display list alone.
+    rec.add(0x4000, 9);
+    Frame other = rec.empty(0x327A10, 30);
+    assert(other.entries.empty() && other.dl_address == 0x327A10 && other.sequence == 2);
+    Frame main = rec.take(0x1FB0C0, 30);
+    assert(main.entries.size() == 1 && main.entries[0].id == 9 && main.sequence == 3);
+
     // Handoff: display lists alternate between two buffers; a pop takes the oldest frame for that buffer and
     // discards the frames before it.
     jfg::interp::Handoff h;
