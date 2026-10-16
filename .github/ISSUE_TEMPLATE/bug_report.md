@@ -1,45 +1,29 @@
 ---
 name: Bug report
-about: Report a bug in the project
+about: Something in the port doesn't work as it should
 title: ''
 labels: ''
 assignees: ''
 
 ---
 
-## Do not report issues with mods on this page. Please report them on the repo for the mods themselves.
+**What happened**
+What you saw, and what you expected instead.
 
-## If you have a crash on startup, please make sure your graphics drivers are up to date before submitting a bug report.
+**Where**
+The level (the stats overlay, F3, shows its name), or what you were doing.
 
-**What is your GPU driver version? Old drivers, particularly on Nvidia, are known to cause crashes on boot. If you are on Nvidia and the game is crashing on boot, please update to a recent driver version before opening an issue.**
+**Steps to reproduce**
+1. ...
 
-**Have you checked whether this issue is vanilla behavior? In other words, does it occur on original hardware?**
+**Does the original game do this?**
+If you can check on a console or an accurate emulator.
 
-**Were you playing with intended mechanics, or using glitches? If it's the latter, which glitches?**
+**System**
+- Distribution:
+- Graphics card and driver version:
+- Commit you built (`git rev-parse --short HEAD`):
+- Controls: Modern or Original, gamepad or mouse and keyboard
 
-**Describe the bug**
-A clear and concise description of what the bug is.
-
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. etc.
-
-**Expected behavior**
-A clear and concise description of what you expected to happen.
-
-**Screenshots**
-Please attach a screenshot of the bug.
-
-**Desktop (please complete the following information):**
- - OS: [Windows 10, Windows 11, Linux distro]
- - Version: [e.g. 1.0.0]
- - CPU: [e.g. Intel Core ..., AMD Ryzen ..., etc.]
- - GPU: [e.g. NVIDIA GeForce .../Radeon RX .../Intel UHD .../etc.]
- - GPU driver: [e.g Nvidia driver 545.XX, AMD driver 24.X.X, etc]
-
-**Mods Installed**
-List the mods you had installed and enabled when you encountered the error.
-
-**Additional context**
-Add any other context about the problem here.
+**Log**
+For a crash, run `jet-force-gemini` from a terminal and paste what it printed.
