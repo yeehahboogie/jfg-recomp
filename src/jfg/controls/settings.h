@@ -13,6 +13,7 @@ struct Settings {
     bool invert_stick_y = false;
     bool aim_toggle = false;       // aim button: hold (false) or toggle
     bool extra_players = false;    // gamepads 2-4 become players 2-4 (false: every gamepad drives player 1)
+    bool show_stats = false;       // the stats overlay (F3)
 };
 // Missing keys keep their defaults, so older config files load.
 void to_json(nlohmann::json& j, const Settings& s);

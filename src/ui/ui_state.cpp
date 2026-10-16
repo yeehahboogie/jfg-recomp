@@ -17,6 +17,8 @@
 #include "RmlUi_Platform_SDL.h"
 
 #include "recomp_ui.h"
+#include "ui_stats_overlay.h"
+#include "../jfg/controls/settings.h"
 #include "recomp_input.h"
 #include "librecomp/game.hpp"
 #include "zelda_config.h"
@@ -208,6 +210,7 @@ public:
         context = Rml::CreateContext("main", Rml::Vector2i(width, height));
         launcher_menu_controller->make_bindings(context);
         config_menu_controller->make_bindings(context);
+        recompui::make_stats_overlay_bindings(context);
 
         Rml::Debugger::Initialise(context);
         {
@@ -237,6 +240,7 @@ public:
         recompui::init_styling(zelda64::get_asset_path("recomp.rcss"));
         launcher_menu_controller->load_document();
         config_menu_controller->load_document();
+        recompui::load_stats_overlay();
         recompui::init_prompt_context();
     }
 
@@ -562,6 +566,10 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
         recompui::show_context(recompui::get_launcher_context_id(), "");
     }
 
+    // The stats overlay shows or hides itself from its setting (F3 toggles it below).
+    recompui::update_stats_overlay();
+    recompui::update_cheats_menu();
+
     std::lock_guard lock{ ui_state_mutex };
 
     SDL_Event cur_event{};
@@ -701,6 +709,13 @@ void draw_hook(RT64::RenderCommandList* command_list, RT64::RenderFramebuffer* s
                     RmlSDL::InputEventHandler(ui_state->context, cur_event);
                 }
             }
+        }
+
+        // F3 toggles the stats overlay (saved like the menu's Stats Overlay option).
+        if (cur_event.type == SDL_EventType::SDL_KEYDOWN && cur_event.key.keysym.scancode == SDL_Scancode::SDL_SCANCODE_F3 &&
+            cur_event.key.repeat == 0) {
+            jfg::controls::settings().show_stats = !jfg::controls::settings().show_stats;
+            zelda64::save_config();
         }
 
         // If the config menu isn't open and the game has been started and either the escape key or select button are pressed, open the config menu.

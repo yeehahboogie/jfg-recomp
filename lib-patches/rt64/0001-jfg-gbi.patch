@@ -562,10 +562,19 @@ index e1889e5..0681436 100644
          uint64_t workloadId = 0;
      };
 diff --git a/src/hle/rt64_present_queue.cpp b/src/hle/rt64_present_queue.cpp
-index 8579695..fa9f0d7 100644
+index 8579695..e744449 100644
 --- a/src/hle/rt64_present_queue.cpp
 +++ b/src/hle/rt64_present_queue.cpp
-@@ -320,6 +320,8 @@ namespace RT64 {
+@@ -10,6 +10,8 @@
+ #include "rt64_workload_queue.h"
+ 
+ namespace RT64 {
++    std::atomic<uint64_t> presentedFrameCount{0};
++
+     // PresentQueue
+ 
+     PresentQueue::PresentQueue() {
+@@ -320,6 +322,8 @@ namespace RT64 {
                      renderParams.downsamplingScale = 1;
                      renderParams.filtering = filtering;
                      renderParams.vi = &present.screenVI;
@@ -574,6 +583,37 @@ index 8579695..fa9f0d7 100644
  
                      const bool useDownsampling = (colorTarget->downsampleMultiplier > 1);
                      if (useDownsampling) {
+@@ -398,6 +402,7 @@ namespace RT64 {
+                 RenderCommandSemaphore *waitSemaphore = drawSemaphore.get();
+                 presentTimestamp = Timer::current();
+                 swapChainValid = ext.swapChain->present(swapChainIndex, &waitSemaphore, 1);
++                presentedFrameCount++;
+                 presentProfiler.logAndRestart();
+             }
+         }
+diff --git a/src/hle/rt64_present_queue.h b/src/hle/rt64_present_queue.h
+index 7bec992..a95040f 100644
+--- a/src/hle/rt64_present_queue.h
++++ b/src/hle/rt64_present_queue.h
+@@ -4,6 +4,8 @@
+ 
+ #pragma once
+ 
++#include <atomic>
++
+ #include "common/rt64_profiling_timer.h"
+ #include "gui/rt64_inspector.h"
+ #include "render/rt64_vi_renderer.h"
+@@ -15,6 +17,9 @@
+ #define PRESENT_QUEUE_SIZE 4
+ 
+ namespace RT64 {
++    // Frames presented to the swap chain so far (read by the frontend for its frame rate display).
++    extern std::atomic<uint64_t> presentedFrameCount;
++
+     struct WorkloadQueue;
+ 
+     struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
 index ea0c1ac..d61bfe0 100644
 --- a/src/hle/rt64_rsp.cpp

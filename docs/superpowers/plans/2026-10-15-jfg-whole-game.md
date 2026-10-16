@@ -25,6 +25,8 @@ Goal (user, 2026-10-15): the definition of done is the **entire game**, start to
 - A second player as Floyd in story mode.
 - These need the user's play, or a late-game save from the user's own copy of the game.
 
+**Player tools (2026-10-16):** the stats overlay (F3), the Cheats tab (game cheats, infinite ammo, refill health, level select, skip ahead), and the General list now scrolls. See the handoff doc.
+
 **Optional polish:**
 - A JFG HUD Placement option (widescreen HUD at the edges).
 - The asteroid levels' widescreen corners.

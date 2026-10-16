@@ -1,17 +1,25 @@
 // Level survey aids: log level changes, warp to a level (docs/superpowers/plans/2026-10-15-jfg-whole-game.md).
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <initializer_list>
 #include <optional>
+#include <span>
 #include <string>
 
+#include <mutex>
+
 #include "recomp.h"
+#include "librecomp/game.hpp"
 #include "jfg_level_hooks.h"
 #include "jfg_level_tools.h"
+#include "jfg_player_tools.h"
+#include "jfg_tools.h"
 
-extern "C" void func_8004471C(uint8_t* rdram, recomp_context* ctx); // levelGetName
+extern "C" void func_80047C1C(uint8_t* rdram, recomp_context* ctx); // the player's stats (character, player number)
+extern "C" void func_8004665C(uint8_t* rdram, recomp_context* ctx); // mainChangeLevel
 
 namespace {
 const char* const debug_env = std::getenv("JFG_DEBUG_LEVELS");
@@ -161,32 +169,179 @@ static void dump_objects_tick(uint8_t* rdram) {
     std::fflush(out);
 }
 
-// JFG_CHEATS=invuln,weapons[,levels]: switch on the game's own cheat flags every frame (invulnerabilityCheat,
-// allweaponsCheat, allLevelCheat), so scripted runs survive and have every weapon.
-static void cheats_tick(uint8_t* rdram) {
-    static const std::string cheats = []() { const char* v = std::getenv("JFG_CHEATS"); return std::string(v ? v : ""); }();
-    if (cheats.empty()) return;
-    if (cheats.find("invuln") != std::string::npos) MEM_W(0, (gpr)(int32_t)0x800A5070) = 1;
-    if (cheats.find("weapons") != std::string::npos) MEM_W(0, (gpr)(int32_t)0x800A5078) = 1;
-    if (cheats.find("levels") != std::string::npos) MEM_W(0, (gpr)(int32_t)0x800A5068) = 1;
+// Player tools: cheats, level skip and the data the stats overlay shows (jfg_player_tools.h).
+namespace {
+constexpr gpr all_level_cheat = (gpr)(int32_t)0x800A5068;
+constexpr gpr invulnerability_cheat = (gpr)(int32_t)0x800A5070;
+constexpr gpr all_weapons_cheat = (gpr)(int32_t)0x800A5078;
+jfg::Mailbox refill_box, warp_box, exit_box;
+std::mutex info_mutex;
+jfg::tools::GameInfo info;            // guarded by info_mutex
+std::vector<std::string> names;       // guarded by info_mutex
+std::atomic<int64_t> last_gameplay_ns{0};
+std::atomic<uint64_t> frame_count{0};
+
+int64_t now_ns() {
+    return std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// Development aid: JFG_CHEATS=invuln,weapons[,levels][,ammo] switches cheats on from the start (scripted runs).
+jfg::tools::Cheats& cheat_state() {
+    static jfg::tools::Cheats state;
+    static bool initialised = false;
+    if (!initialised) {
+        initialised = true;
+        const char* v = std::getenv("JFG_CHEATS");
+        const std::string list = v ? v : "";
+        state.invulnerable = list.find("invuln") != std::string::npos;
+        state.all_weapons = list.find("weapons") != std::string::npos;
+        state.all_levels = list.find("levels") != std::string::npos;
+        state.infinite_ammo = list.find("ammo") != std::string::npos;
+    }
+    return state;
+}
+
+// A cheat flag follows its switch: written while on, cleared once when switched off.
+void apply_flag(uint8_t* rdram, gpr flag, bool on, bool& was_on) {
+    if (on) MEM_W(0, flag) = 1;
+    else if (was_on) MEM_W(0, flag) = 0;
+    was_on = on;
+}
+
+// The current level's exits (objects with control type 8), in object-list order.
+std::vector<gpr> level_exits(uint8_t* rdram) {
+    std::vector<gpr> exits;
+    const gpr list = (gpr)(int32_t)MEM_W(0, obj_list);
+    const int32_t count = MEM_W(0, obj_count);
+    for (int32_t i = 0; i < count; i++) {
+        const gpr obj = (gpr)(int32_t)MEM_W(4 * i, list);
+        if (obj != 0 && (int16_t)MEM_H(0x48, obj) == exit_control_type) exits.push_back(obj);
+    }
+    return exits;
+}
+
+// Every level's name, read straight from the ROM: the game's levelGetName allocates and frees memory as it goes,
+// which during gameplay broke the next level load (a division by zero in trackInit). The asset table (pointer at
+// 0x800FE070) holds each asset's offset at [id + 1], from ROM 0xB1880; asset 0x1E is the per-level offset of each
+// name in asset 0x1F, and a name is 32 bytes.
+std::vector<std::string> read_level_names(uint8_t* rdram, int32_t count) {
+    const std::span<const uint8_t> rom = recomp::get_rom();
+    const gpr table = (gpr)(int32_t)MEM_W(0, (gpr)(int32_t)0x800FE070);
+    auto asset_rom = [&](int id) { return 0xB1880u + (uint32_t)MEM_W(4 * (id + 1), table); };
+    auto be32 = [&](uint32_t a) {
+        return a + 4 <= rom.size() ? (uint32_t(rom[a]) << 24) | (uint32_t(rom[a + 1]) << 16) | (uint32_t(rom[a + 2]) << 8) | rom[a + 3] : 0u;
+    };
+    const uint32_t offsets = asset_rom(0x1E), texts = asset_rom(0x1F);
+    std::vector<std::string> result;
+    for (int32_t n = 0; n < count; n++) {
+        const uint32_t at = texts + be32(offsets + 4 * n);
+        std::string name;
+        for (uint32_t k = 0; k < 32 && at + k < rom.size() && rom[at + k] != 0; k++) name.push_back((char)rom[at + k]);
+        result.push_back(name);
+    }
+    return result;
+}
+
+void player_tools_tick(uint8_t* rdram, recomp_context* ctx) {
+    const gpr player = ctx->r4;
+    const gpr pd = (gpr)(int32_t)MEM_W(0x68, player);
+    last_gameplay_ns = now_ns();
+    jfg::tools::Cheats& cheats = cheat_state();
+
+    static bool invulnerable_was = false, weapons_was = false, levels_was = false;
+    apply_flag(rdram, invulnerability_cheat, cheats.invulnerable, invulnerable_was);
+    apply_flag(rdram, all_weapons_cheat, cheats.all_weapons, weapons_was);
+    apply_flag(rdram, all_level_cheat, cheats.all_levels, levels_was);
+
+    // The player's stats: owned weapons (bitmask at +0x0A), ammo per weapon (+0x14 + 2w) and its cap (+0x34 + 2w),
+    // health segments (+0x02), as ammoPickupControl and healthPickupControl use them.
+    auto stats = [&]() {
+        return (gpr)(int32_t)call_game(rdram, ctx, func_80047C1C, {(uint32_t)(int32_t)MEM_B(0, pd), (uint32_t)(int32_t)MEM_B(1, pd)});
+    };
+    if (cheats.infinite_ammo) {
+        const gpr s = stats();
+        const uint16_t owned = MEM_HU(0x0A, s);
+        for (int w = 0; w < 16; w++) {
+            if (owned & (1u << w)) MEM_H(0x14 + 2 * w, s) = MEM_H(0x34 + 2 * w, s);
+        }
+    }
+    if (refill_box.take()) {
+        // Health is the halfword at +6 of the struct at player +0x4C; full is ((segments * 5) + 4) << 8, as a full
+        // health pickup sets it.
+        const gpr health = (gpr)(int32_t)MEM_W(0x4C, player);
+        if (health != 0) {
+            MEM_H(6, health) = (int16_t)(((MEM_H(2, stats()) * 5) + 4) << 8);
+            std::fprintf(stderr, "[tools] health refilled\n");
+        }
+    }
+    if (auto level = warp_box.take()) {
+        // The arguments the game's own exits use: entry 0, 0, 16, [sp+10] 1, [sp+14] 1.
+        std::fprintf(stderr, "[tools] warp to level %d\n", *level);
+        call_game(rdram, ctx, func_8004665C, {(uint32_t)*level, 0, 0, 16, 1, 1});
+    }
+    if (auto index = exit_box.take()) {
+        // As exitControl does for a player in range: point the player at the exit and start its countdown; the
+        // player's own code then changes level (objects outside the player's region aren't updated, so moving the
+        // player there isn't enough).
+        const std::vector<gpr> exits = level_exits(rdram);
+        if (*index < (int)exits.size()) {
+            MEM_W(0xF4, pd) = (int32_t)(uint32_t)exits[*index];
+            MEM_B(0x196, pd) = -120;
+            std::fprintf(stderr, "[tools] taking exit %d of level %d\n", *index, MEM_W(0, current_level));
+        }
+    }
+
+    static uint32_t frame = 0;
+    if (frame++ % 10 == 0) {
+        const float x = read_f32(rdram, player, 0x0C), y = read_f32(rdram, player, 0x10), z = read_f32(rdram, player, 0x14);
+        std::vector<float> distances;
+        for (gpr exit : level_exits(rdram)) {
+            const float dx = read_f32(rdram, exit, 0x0C) - x, dy = read_f32(rdram, exit, 0x10) - y, dz = read_f32(rdram, exit, 0x14) - z;
+            distances.push_back(std::sqrt(dx * dx + dy * dy + dz * dz));
+        }
+        std::lock_guard lock(info_mutex);
+        info.level = MEM_W(0, current_level);
+        info.x = x; info.y = y; info.z = z;
+        info.exit_distances = std::move(distances);
+        if (names.empty()) {
+            names = read_level_names(rdram, MEM_W(0, level_count));
+        }
+    }
+}
+}
+
+namespace jfg::tools {
+Cheats& cheats() { return cheat_state(); }
+void request_refill_health() { refill_box.post(1); }
+void request_warp(int level) { warp_box.post(level); }
+void request_exit(int index) { exit_box.post(index); }
+GameInfo game_info() {
+    std::lock_guard lock(info_mutex);
+    GameInfo copy = info;
+    copy.in_gameplay = now_ns() - last_gameplay_ns.load() < 500'000'000;
+    return copy;
+}
+std::vector<std::string> level_names() {
+    std::lock_guard lock(info_mutex);
+    return names;
+}
+void count_game_frame() { frame_count++; }
+uint64_t game_frames() { return frame_count.load(); }
 }
 
 // Called each frame for player 1 from the controlPlayer hook (src/jfg/controls/hooks.cpp), at controlPlayer's entry
 // (a0 = the player's object).
 void jfg_level_tick(uint8_t* rdram, recomp_context* ctx) {
     exit_test_tick(rdram, ctx->r4);
-    cheats_tick(rdram);
+    player_tools_tick(rdram, ctx);
     dump_objects_tick(rdram);
     static bool started = false; // first gameplay frame seen
     if (!started) {
         started = true;
         if (dump_names) {
-            const int32_t count = MEM_W(0, level_count);
-            for (int32_t n = 0; n < count; n++) {
-                const gpr name = (gpr)(int32_t)call_game(rdram, ctx, func_8004471C, {(uint32_t)n});
-                char text[33] = {};
-                for (int k = 0; k < 32; k++) text[k] = (char)MEM_BU(k, name);
-                std::fprintf(stderr, "[levels] name %d (0x%X): %s\n", n, n, text);
+            const std::vector<std::string> all = read_level_names(rdram, MEM_W(0, level_count));
+            for (size_t n = 0; n < all.size(); n++) {
+                std::fprintf(stderr, "[levels] name %zu (0x%zX): %s\n", n, n, all[n].c_str());
             }
         }
     }

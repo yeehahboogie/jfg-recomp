@@ -10,6 +10,7 @@
 
 #include "librecomp/helpers.hpp"
 #include "jfg_input_script.h"
+#include "jfg_player_tools.h"
 #include "../jfg/controls/settings.h"
 #include "../jfg/controls/translate.h"
 #include "../jfg/controls/input_state.h"
@@ -190,6 +191,7 @@ bool recomp::get_n64_input(int controller_num, uint16_t* buttons_out, float* x_o
     if (controller_num != 0) {
         return extra_player_input(controller_num, buttons_out, x_out, y_out);
     }
+    jfg::tools::count_game_frame();
 
     // Development aid: JFG_CONTROLS_SCHEME_FLIP_AT=<seconds> flips Modern/Original once, that long after the first
     // controller read, without saving (checks that a mid-game switch takes effect on the next frame).

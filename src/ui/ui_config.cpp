@@ -8,6 +8,10 @@
 #include "promptfont.h"
 #include "ultramodern/config.hpp"
 #include "../jfg/controls/settings.h"
+#include "jfg_player_tools.h"
+#include "jfg_tools.h"
+#include "ui_stats_overlay.h"
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include "ultramodern/ultramodern.hpp"
@@ -497,6 +501,54 @@ class ConfigTabsetListener : public Rml::EventListener {
     }
 };
 
+// The Cheats tab (assets/config_menu/cheats.rml). The game side applies the cheats and carries out the requests at
+// player 1's next gameplay frame (jfg_player_tools.h, src/jfg/level_hooks.cpp).
+Rml::DataModelHandle cheats_model_handle;
+struct {
+    std::vector<std::string> level_names;  // "N  Name", by level number
+    int warp_level = 0;
+    std::vector<std::string> exit_labels;
+    int exit_index = 0;
+    std::string status;
+    std::chrono::steady_clock::time_point status_until{};
+} cheats_context;
+
+void set_cheat_status(const std::string& text, bool lasting) {
+    cheats_context.status = text;
+    cheats_context.status_until = lasting ? std::chrono::steady_clock::now() + std::chrono::seconds(4) : std::chrono::steady_clock::time_point{};
+    cheats_model_handle.DirtyVariable("cheat_status");
+}
+
+// Requests only make sense in gameplay (the game side acts at player 1's next frame).
+bool cheats_in_gameplay() {
+    if (jfg::tools::game_info().in_gameplay) return true;
+    set_cheat_status("Start or load a game first: this works during play.", true);
+    return false;
+}
+
+// Binds the Cheats tab's values into its model (the config menu creates the model and adds the option-list events).
+void make_cheats_bindings(Rml::DataModelConstructor& constructor) {
+    constructor.RegisterArray<std::vector<std::string>>();
+    auto toggle = [&constructor](const char* name, std::atomic<bool> jfg::tools::Cheats::*field) {
+        constructor.BindFunc(name,
+            [field](Rml::Variant& out) { out = std::string((jfg::tools::cheats().*field).load() ? "On" : "Off"); },
+            [field, name](const Rml::Variant& in) {
+                (jfg::tools::cheats().*field) = in.Get<std::string>() == "On";
+                cheats_model_handle.DirtyVariable(name);
+            });
+    };
+    toggle("cheat_invulnerable", &jfg::tools::Cheats::invulnerable);
+    toggle("cheat_all_weapons", &jfg::tools::Cheats::all_weapons);
+    toggle("cheat_all_levels", &jfg::tools::Cheats::all_levels);
+    toggle("cheat_infinite_ammo", &jfg::tools::Cheats::infinite_ammo);
+    constructor.Bind("cheat_level_names", &cheats_context.level_names);
+    constructor.Bind("cheat_warp_level", &cheats_context.warp_level);
+    constructor.Bind("cheat_exit_labels", &cheats_context.exit_labels);
+    constructor.Bind("cheat_exit_index", &cheats_context.exit_index);
+    constructor.Bind("cheat_status", &cheats_context.status);
+    cheats_model_handle = constructor.GetModelHandle();
+}
+
 class ConfigMenu : public recompui::MenuController {
 private:
     ConfigTabsetListener config_tabset_listener;
@@ -513,6 +565,31 @@ public:
         recompui::get_config_tabset()->AddEventListener(Rml::EventId::Tabchange, &config_tabset_listener);
     }
     void register_events(recompui::UiEventListenerInstancer& listener) override {
+        recompui::register_event(listener, "cheat_refill_health",
+            [](const std::string& param, Rml::Event& event) {
+                if (!cheats_in_gameplay()) return;
+                jfg::tools::request_refill_health();
+                set_cheat_status("Health refilled.", true);
+            });
+        recompui::register_event(listener, "cheat_warp",
+            [](const std::string& param, Rml::Event& event) {
+                if (!cheats_in_gameplay()) return;
+                if (cheats_context.warp_level < 0 || cheats_context.warp_level >= (int)cheats_context.level_names.size()) return;
+                jfg::tools::request_warp(cheats_context.warp_level);
+                set_cheat_status("Warping to " + cheats_context.level_names[cheats_context.warp_level] + ".", true);
+                close_config_menu();
+            });
+        recompui::register_event(listener, "cheat_take_exit",
+            [](const std::string& param, Rml::Event& event) {
+                if (!cheats_in_gameplay()) return;
+                if (cheats_context.exit_index < 0 || cheats_context.exit_index >= (int)cheats_context.exit_labels.size()) {
+                    set_cheat_status("This level has no exits to take.", true);
+                    return;
+                }
+                jfg::tools::request_exit(cheats_context.exit_index);
+                set_cheat_status("Taking " + cheats_context.exit_labels[cheats_context.exit_index] + ".", true);
+                close_config_menu();
+            });
         recompui::register_event(listener, "apply_options",
             [](const std::string& param, Rml::Event& event) {
                 graphics_model_handle.DirtyVariable("options_changed");
@@ -946,6 +1023,7 @@ public:
         radio("controls_invert_stick", &jfg::controls::Settings::invert_stick_y, "On", "Off");
         radio("controls_aim_button", &jfg::controls::Settings::aim_toggle, "Toggle", "Hold");
         radio("controls_extra_players", &jfg::controls::Settings::extra_players, "On", "Off");
+        radio("controls_show_stats", &jfg::controls::Settings::show_stats, "On", "Off");
 
         // Drift-back delay in tenths of a second; 0 means off (stored as -1).
         constructor.BindFunc("controls_drift",
@@ -1060,8 +1138,51 @@ public:
         make_graphics_bindings(context);
         make_sound_options_bindings(context);
         make_debug_bindings(context);
+        Rml::DataModelConstructor cheats_constructor = context->CreateDataModel("cheats_model");
+        if (!cheats_constructor) {
+            throw std::runtime_error("Failed to make RmlUi data model for the cheats menu");
+        }
+        bind_config_list_events(cheats_constructor);
+        make_cheats_bindings(cheats_constructor);
     }
 };
+
+// Called at the start of every UI frame: while the menu is open, keeps the Cheats tab's level and exit lists and its
+// status line current (twice a second).
+void recompui::update_cheats_menu() {
+    if (!recompui::is_context_shown(recompui::get_config_context_id())) return;
+    static auto last = std::chrono::steady_clock::time_point{};
+    const auto now = std::chrono::steady_clock::now();
+    if (now - last < std::chrono::milliseconds(500)) return;
+    last = now;
+    const jfg::tools::GameInfo info = jfg::tools::game_info();
+    if (cheats_context.level_names.empty()) {
+        const std::vector<std::string> names = jfg::tools::level_names();
+        if (!names.empty()) {
+            for (size_t n = 0; n < names.size(); n++) cheats_context.level_names.push_back(std::to_string(n) + "  " + names[n]);
+            if (info.level >= 0) cheats_context.warp_level = info.level;
+            cheats_model_handle.DirtyVariable("cheat_level_names");
+            cheats_model_handle.DirtyVariable("cheat_warp_level");
+        }
+    }
+    std::vector<std::string> labels;
+    if (info.in_gameplay) {
+        for (size_t i = 0; i < info.exit_distances.size(); i++) labels.push_back(jfg::exit_label((int)i, info.exit_distances[i]));
+    }
+    if (labels != cheats_context.exit_labels) {
+        cheats_context.exit_labels = labels;
+        if (cheats_context.exit_index >= (int)labels.size()) cheats_context.exit_index = 0;
+        cheats_model_handle.DirtyVariable("cheat_exit_labels");
+        cheats_model_handle.DirtyVariable("cheat_exit_index");
+    }
+    if (now >= cheats_context.status_until) {
+        const std::string idle = info.in_gameplay ? "" : "Start or load a game to use health, Level Select and Skip Ahead.";
+        if (cheats_context.status != idle) {
+            cheats_context.status = idle;
+            cheats_model_handle.DirtyVariable("cheat_status");
+        }
+    }
+}
 
 std::unique_ptr<recompui::MenuController> recompui::create_config_menu() {
     return std::make_unique<ConfigMenu>();

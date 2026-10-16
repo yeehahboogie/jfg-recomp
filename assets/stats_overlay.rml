@@ -1,0 +1,40 @@
+<rml>
+<head>
+    <link type="text/rcss" href="rml.rcss"/>
+    <link type="text/rcss" href="recomp.rcss"/>
+    <title>Stats</title>
+    <style>
+        body
+        {
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        div#stats-panel
+        {
+            position: absolute;
+            right: 16dp;
+            top: 16dp;
+            padding: 8dp 12dp;
+            border-radius: 6dp;
+            background-color: rgba(0, 0, 0, 160);
+            pointer-events: none;
+        }
+        div.stats-line
+        {
+            font-family: chiaro;
+            font-size: 18dp;
+            color: #E8E8E8;
+            line-height: 24dp;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div data-model="stats_model">
+        <div id="stats-panel">
+            <div class="stats-line" data-for="line : stats_lines">{{line}}</div>
+        </div>
+    </div>
+</body>
+</rml>

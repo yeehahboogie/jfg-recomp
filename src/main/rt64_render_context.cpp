@@ -14,6 +14,7 @@
 #include "zelda_render.h"
 #include "recomp_ui.h"
 #include "concurrentqueue.h"
+#include "jfg_player_tools.h"
 
 static RT64::UserConfiguration::Antialiasing device_max_msaa = RT64::UserConfiguration::Antialiasing::None;
 static bool sample_positions_supported = false;
@@ -527,4 +528,8 @@ bool zelda64::renderer::is_texture_pack_enable_config_option(const recomp::mods:
         return true;
     }
     return false;
+}
+
+uint64_t jfg::tools::render_frames() {
+    return RT64::presentedFrameCount.load();
 }

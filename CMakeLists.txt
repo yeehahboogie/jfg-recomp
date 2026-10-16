@@ -106,6 +106,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/ui/ui_state.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_launcher.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_config.cpp
+    ${CMAKE_SOURCE_DIR}/src/ui/ui_stats_overlay.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_prompt.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_config_sub_menu.cpp
     ${CMAKE_SOURCE_DIR}/src/ui/ui_color_hack.cpp
@@ -147,6 +148,7 @@ set (SOURCES
     ${CMAKE_SOURCE_DIR}/src/jfg/crash_handler.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/audio_queue.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/players.cpp
+    ${CMAKE_SOURCE_DIR}/src/jfg/tools.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/gate.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/hooks.cpp
     ${CMAKE_SOURCE_DIR}/src/jfg/controls/settings.cpp

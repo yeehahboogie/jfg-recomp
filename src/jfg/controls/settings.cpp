@@ -1,7 +1,7 @@
 #include "settings.h"
 namespace jfg::controls {
 #define JFG_SETTINGS_FIELDS(X) X(modern) X(camera_mode) X(drift_delay) X(stick_yaw_dps) X(stick_pitch_dps) \
-    X(aim_mult) X(invert_mouse_y) X(invert_stick_y) X(aim_toggle) X(extra_players)
+    X(aim_mult) X(invert_mouse_y) X(invert_stick_y) X(aim_toggle) X(extra_players) X(show_stats)
 
 void to_json(nlohmann::json& j, const Settings& s) {
     j = nlohmann::json::object();

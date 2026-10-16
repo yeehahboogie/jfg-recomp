@@ -41,6 +41,7 @@
 #include "jfg_overlays.hpp"
 #include "jfg_hooks.h"
 #include "jfg_audio_queue.h"
+#include "jfg_player_tools.h"
 #include "jfg_crash_handler.h"
 #include "librecomp/game.hpp"
 #include "librecomp/mods.hpp"
@@ -307,6 +308,11 @@ void queue_samples(int16_t* audio_data, size_t sample_count) {
     }
 
     SDL_QueueAudio(audio_device, samples_to_queue, num_bytes_to_queue);
+}
+
+double jfg::tools::audio_queued_ms() {
+    if (audio_device == 0) return 0.0;
+    return double(SDL_GetQueuedAudioSize(audio_device)) / (output_channels * sizeof(float)) * 1000.0 / output_sample_rate;
 }
 
 size_t get_frames_remaining() {

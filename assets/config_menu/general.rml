@@ -5,7 +5,7 @@
         <form class="config__form" id="conf-general__form">
             <div class="config__hz-wrapper" id="conf-general__hz-wrapper">
                 <!-- Options -->
-                <div class="config__wrapper" data-event-mouseout="set_cur_config_index(-1)" id="conf-general__wrapper">
+                <div class="config__wrapper" data-event-mouseout="set_cur_config_index(-1)" id="conf-general__wrapper" style="max-height: 100%; overflow-y: auto;">
 
                     <!-- rumble strength -->
                     <div class="config-option" data-event-mouseover="set_cur_config_index(1)">
@@ -273,7 +273,7 @@
                                 data-checked="controls_extra_players"
                                 value="Off"
                                 id="controls_extra_players_off"
-                                style="nav-up: #bg_input_enabled"
+                                style="nav-up: #bg_input_enabled; nav-down: #controls_show_stats_off"
                             />
                             <label class="config-option__tab-label" for="controls_extra_players_off">Off</label>
 
@@ -285,9 +285,38 @@
                                 data-checked="controls_extra_players"
                                 value="On"
                                 id="controls_extra_players_on"
-                                style="nav-up: #bg_input_disabled"
+                                style="nav-up: #bg_input_disabled; nav-down: #controls_show_stats_on"
                             />
                             <label class="config-option__tab-label" for="controls_extra_players_on">On</label>
+                        </div>
+                    </div>
+
+                    <div class="config-option" data-event-mouseover="set_cur_config_index(18)">
+                        <label class="config-option__title">Stats Overlay</label>
+                        <div class="config-option__list">
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(18)"
+                                name="controls_show_stats"
+                                data-checked="controls_show_stats"
+                                value="Off"
+                                id="controls_show_stats_off"
+                                style="nav-up: #controls_extra_players_off"
+                            />
+                            <label class="config-option__tab-label" for="controls_show_stats_off">Off</label>
+
+                            <input
+                                type="radio"
+                                data-event-blur="set_cur_config_index(-1)"
+                                data-event-focus="set_cur_config_index(18)"
+                                name="controls_show_stats"
+                                data-checked="controls_show_stats"
+                                value="On"
+                                id="controls_show_stats_on"
+                                style="nav-up: #controls_extra_players_on"
+                            />
+                            <label class="config-option__tab-label" for="controls_show_stats_on">On</label>
                         </div>
                     </div>
 
@@ -336,6 +365,9 @@
                         <b>On</b>: the second, third and fourth gamepads become players 2 to 4 (multiplayer, or a second player controlling Floyd), with the N64 controls. Player 1 keeps the first gamepad, the keyboard and the mouse.
                         <br />
                         <b>Off</b>: every gamepad controls player 1.
+                    </p>
+                    <p data-if="cur_config_index == 18">
+                        Shows game and render frame rates, frame time, the current level, your position and the audio latency in a corner of the screen. <b>F3</b> also toggles it.
                     </p>
                 </div>
             </div>
