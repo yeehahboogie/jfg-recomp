@@ -671,13 +671,28 @@ index 7bec992..a95040f 100644
  
      struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..7ddb595 100644
+index ea0c1ac..5688ff7 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
-@@ -38,6 +38,21 @@ namespace RT64 {
+@@ -5,6 +5,8 @@
+ #include "rt64_rsp.h"
+ 
+ #include <cassert>
++#include <cstdio>
++#include <cstdlib>
+ 
+ #include "../include/rt64_extended_gbi.h"
+ #include "common/rt64_common.h"
+@@ -38,6 +40,27 @@ namespace RT64 {
      }
  
      void RSP::reset() {
++        static const bool interpDebug = std::getenv("JFG_DEBUG_INTERP") != nullptr;
++        if (interpDebug && ((jfgTagged + jfgUnknown) > 0)) {
++            fprintf(stderr, "[interp] task %lld: %u tagged, %u unknown matrix loads\n", (long long)jfgTask, jfgTagged, jfgUnknown);
++        }
++        jfgTagged = 0;
++        jfgUnknown = 0;
 +        jfgTask++;
 +        dkr.slots.fill(hlslpp::float4x4::identity());
 +        dkr.slotAbsolute.fill(false);
@@ -696,7 +711,7 @@ index ea0c1ac..7ddb595 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +395,233 @@ namespace RT64 {
+@@ -380,6 +403,280 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -755,6 +770,7 @@ index ea0c1ac..7ddb595 100644
 +                mvp[3][0] + anchor[0], mvp[3][1] + anchor[1], mvp[3][2] + anchor[2], mvp[3][3] + anchor[3]);
 +            setViewProjDKR(shifted, dkr.slotAddress[dkr.activeSlot & 3], false);
 +            modelMatrixStack[modelMatrixStackSize - 1] = hlslpp::float4x4::identity();
++            setModelGroupIgnoreDKR();
 +            modelViewProjChanged = true;
 +            dkr.viewProjIsSlot0 = false;
 +        }
@@ -874,21 +890,65 @@ index ea0c1ac..7ddb595 100644
 +        }
 +    }
 +
++    TransformGroup RSP::jfgTransformGroup(uint32_t physicalAddress, bool projection) const {
++        TransformGroup group;
++        const JfgFrameTable *table = state->jfgFrame;
++        const JfgMatrixIdentity *entry = ((table != nullptr) && table->enabled) ? table->find(physicalAddress) : nullptr;
++        if (entry == nullptr) {
++            group.matrixId = G_EX_ID_IGNORE;
++            return group;
++        }
++
++        auto mode = [entry](uint8_t skipBit) {
++            return (entry->skip & skipBit) ? uint8_t(G_EX_COMPONENT_SKIP) : uint8_t(G_EX_COMPONENT_INTERPOLATE);
++        };
++        group.matrixId = entry->id;
++        group.ordering = G_EX_ORDER_LINEAR;
++        group.positionInterpolation = mode(JFG_SKIP_POSITION);
++        group.rotationInterpolation = mode(JFG_SKIP_ROTATION);
++        group.scaleInterpolation = mode(JFG_SKIP_SCALE);
++        group.skewInterpolation = mode(JFG_SKIP_SCALE);
++        group.perspectiveInterpolation = projection ? mode(JFG_SKIP_SCALE) : uint8_t(G_EX_COMPONENT_AUTO);
++        group.vertexInterpolation = G_EX_COMPONENT_SKIP;
++        group.tileInterpolation = G_EX_COMPONENT_SKIP;
++        return group;
++    }
++
++    void RSP::setModelGroupDKR(uint32_t physicalAddress) {
++        TransformGroup &group = extended.modelMatrixIdStack[extended.modelMatrixIdStackSize - 1];
++        group = jfgTransformGroup(physicalAddress, false);
++        extended.modelMatrixIdStackChanged = true;
++        if (group.matrixId == G_EX_ID_IGNORE) {
++            jfgUnknown++;
++        }
++        else {
++            jfgTagged++;
++        }
++    }
++
++    // The identity model under an absolute matrix or a billboard isn't a world transform of its own: never pair it.
++    void RSP::setModelGroupIgnoreDKR() {
++        TransformGroup &group = extended.modelMatrixIdStack[extended.modelMatrixIdStackSize - 1];
++        group = TransformGroup();
++        group.matrixId = G_EX_ID_IGNORE;
++        extended.modelMatrixIdStackChanged = true;
++    }
++
 +    // Slot 0 of Rare's matrix slots is the camera: load it as the view-projection so the renderer still
 +    // knows the real projection.
 +    void RSP::setViewProjDKR(const hlslpp::float4x4 &viewProj, uint32_t physicalAddress, bool interpolate) {
 +        TransformGroup &group = extended.viewProjMatrixIdStack[extended.viewProjMatrixIdStackSize - 1];
-+        // Frame interpolation matches projections between frames by order and copies the first match's motion onto
-+        // the rest, which doesn't fit Rare's microcode (skyboxes, absolute matrices and billboards become projections
-+        // whose number and order vary per frame): cameras got blended with unrelated transforms (flicker, jitter).
-+        // Until JFG draws carry stable identities, none of its projections take part in interpolation.
-+        (void)interpolate;
-+        const uint32_t matrixId = G_EX_ID_IGNORE;
-+        if (group.matrixId != matrixId) {
-+            group = TransformGroup();
-+            group.matrixId = matrixId;
-+            extended.viewProjMatrixIdStackChanged = true;
++        // Jet Force Gemini cameras (slot 0) are matched by the identity the game's hooks gave their matrix. Absolute
++        // matrices and billboards (interpolate = false) also become projections here; until they're rebuilt as model
++        // transforms (interpolation plan 2) they're drawn as-is, so they can't be blended with a camera.
++        if (interpolate) {
++            group = jfgTransformGroup(physicalAddress, true);
 +        }
++        else {
++            group = TransformGroup();
++            group.matrixId = G_EX_ID_IGNORE;
++        }
++        extended.viewProjMatrixIdStackChanged = true;
 +
 +        hlslpp::float4x4 &viewMatrix = viewMatrixStack[projectionMatrixStackSize - 1];
 +        hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
@@ -916,6 +976,7 @@ index ea0c1ac..7ddb595 100644
 +            setViewProjDKR(dkr.slots[slot], dkr.slotAddress[slot], false);
 +            dkr.viewProjIsSlot0 = false;
 +            modelMatrixStack[modelMatrixStackSize - 1] = hlslpp::float4x4::identity();
++            setModelGroupIgnoreDKR();
 +        }
 +        else {
 +            if (!dkr.viewProjIsSlot0) {
@@ -923,6 +984,7 @@ index ea0c1ac..7ddb595 100644
 +                dkr.viewProjIsSlot0 = true;
 +            }
 +            modelMatrixStack[modelMatrixStackSize - 1] = dkr.slots[slot];
++            setModelGroupDKR(dkr.slotAddress[slot]);
 +        }
 +        modelViewProjChanged = true;
 +    }
@@ -931,7 +993,7 @@ index ea0c1ac..7ddb595 100644
          const hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
          const bool perspProj = (projMatrix[3][3] == 0.0f) && (abs(projMatrix[1][1]) > 1e-6f);
 diff --git a/src/hle/rt64_rsp.h b/src/hle/rt64_rsp.h
-index 1611b7a..ff730eb 100644
+index 1611b7a..fc26750 100644
 --- a/src/hle/rt64_rsp.h
 +++ b/src/hle/rt64_rsp.h
 @@ -217,6 +217,34 @@ namespace RT64 {
@@ -969,7 +1031,7 @@ index 1611b7a..ff730eb 100644
          RSP(State *state);
          void reset();
          Projection::Type getCurrentProjectionType() const;
-@@ -239,6 +267,12 @@ namespace RT64 {
+@@ -239,6 +267,20 @@ namespace RT64 {
          void setVertexPD(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexEXV1(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexColorPD(uint32_t address);
@@ -978,6 +1040,14 @@ index 1611b7a..ff730eb 100644
 +        // interpolate = false for projections that aren't the camera (absolute matrices, billboards): they're tagged
 +        // G_EX_ID_IGNORE so frame interpolation neither maps them nor copies the camera's motion onto them.
 +        void setViewProjDKR(const hlslpp::float4x4 &viewProj, uint32_t physicalAddress, bool interpolate = true);
++        // Jet Force Gemini frame interpolation: the transform group for a matrix loaded from physicalAddress, from
++        // the frame's identity table (State::jfgFrame). Unknown matrices, or interpolation switched off, get
++        // G_EX_ID_IGNORE: drawn as-is, never guessed.
++        TransformGroup jfgTransformGroup(uint32_t physicalAddress, bool projection) const;
++        void setModelGroupDKR(uint32_t physicalAddress);
++        void setModelGroupIgnoreDKR();
++        uint32_t jfgTagged = 0;
++        uint32_t jfgUnknown = 0;
 +        void applyMatrixSlotDKR();
          template<bool addEmptyVelocity>
          void setVertexCommon(uint8_t dstIndex, uint8_t dstMax);
