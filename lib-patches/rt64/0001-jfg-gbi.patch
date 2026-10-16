@@ -548,6 +548,52 @@ index dccaa87..343a2b9 100644
              if (dl != nullptr) {
                  dl++;
              }
+diff --git a/src/hle/rt64_jfg_frame.h b/src/hle/rt64_jfg_frame.h
+new file mode 100644
+index 0000000..515ee5f
+--- /dev/null
++++ b/src/hle/rt64_jfg_frame.h
+@@ -0,0 +1,40 @@
++//
++// RT64
++//
++
++#pragma once
++
++#include <algorithm>
++#include <cstddef>
++#include <cstdint>
++
++// Jet Force Gemini frame interpolation: which matrices one frame's display list loads belong to what. The port's
++// hooks fill it (src/jfg/interp.cpp in the port) and the F3DJFG handlers read it through State::jfgFrame. Plain
++// data, so RT64 doesn't depend on the port.
++namespace RT64 {
++    enum : uint8_t {
++        JFG_SKIP_POSITION = 1 << 0,
++        JFG_SKIP_ROTATION = 1 << 1,
++        JFG_SKIP_SCALE = 1 << 2, // scale and skew
++        JFG_SKIP_ALL = JFG_SKIP_POSITION | JFG_SKIP_ROTATION | JFG_SKIP_SCALE,
++    };
++
++    struct JfgMatrixIdentity {
++        uint32_t address; // physical RDRAM address of the 64-byte matrix the display list loads
++        uint32_t id;      // stable across frames; never G_EX_ID_IGNORE (0) or G_EX_ID_AUTO (0xFFFFFFFF)
++        uint8_t skip;     // JFG_SKIP_* bits: components not interpolated into this frame
++    };
++
++    struct JfgFrameTable {
++        bool enabled = false;                       // the port's Frame Interpolation toggle
++        const JfgMatrixIdentity *entries = nullptr; // sorted by address, one entry per address
++        size_t count = 0;
++
++        const JfgMatrixIdentity *find(uint32_t address) const {
++            const JfgMatrixIdentity *end = entries + count;
++            const JfgMatrixIdentity *it = std::lower_bound(entries, end, address,
++                [](const JfgMatrixIdentity &e, uint32_t a) { return e.address < a; });
++            return ((it != end) && (it->address == address)) ? it : nullptr;
++        }
++    };
++};
 diff --git a/src/hle/rt64_present.h b/src/hle/rt64_present.h
 index e1889e5..0681436 100644
 --- a/src/hle/rt64_present.h
