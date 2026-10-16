@@ -1,6 +1,8 @@
 #include "jfg_interp.h"
 
 #include <algorithm>
+#include <cmath>
+#include <cstdlib>
 
 namespace jfg::interp {
 void Recorder::add(uint32_t address, uint32_t id, uint8_t skip) {
@@ -57,6 +59,34 @@ std::optional<Frame> Handoff::pop(uint32_t dl_address, uint32_t* discarded) {
     Frame frame = std::move(*it);
     pending_.erase(pending_.begin(), it + 1);
     return frame;
+}
+
+bool CutDetector::cut(uint32_t id, const CameraPose& pose, uint64_t frame) {
+    auto it = last_.find(id);
+    if (it != last_.end() && it->second.frame == frame) return it->second.cut;
+    Last next{pose, 0.f, frame, true};
+    if (it != last_.end() && it->second.frame + 1 == frame) {
+        const Last& prev = it->second;
+        const float dx = pose.position[0] - prev.pose.position[0], dy = pose.position[1] - prev.pose.position[1],
+                    dz = pose.position[2] - prev.pose.position[2];
+        next.step = std::sqrt(dx * dx + dy * dy + dz * dz);
+        auto turn = [](int16_t a, int16_t b) { return std::abs(int(int16_t(uint16_t(a) - uint16_t(b)))); };
+        const bool jumped = next.step > min_jump && next.step > 4.f * prev.step + 16.f;
+        const bool turned = turn(pose.yaw, prev.pose.yaw) > max_turn || turn(pose.pitch, prev.pose.pitch) > max_turn ||
+                            turn(pose.roll, prev.pose.roll) > max_turn;
+        next.cut = jumped || turned || pose.driver != prev.pose.driver;
+    }
+    last_[id] = next;
+    return next.cut;
+}
+
+void CutDetector::reset() {
+    last_.clear();
+}
+
+CutDetector& cut_detector() {
+    static CutDetector d;
+    return d;
 }
 
 Recorder& recorder() {

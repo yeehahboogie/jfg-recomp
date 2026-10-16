@@ -163,3 +163,12 @@ text = "jfg_probe_f2l(rdram, ctx);"
 [[patches.hook]]
 func = "func_80042470"          # camConvertMatrixList: queues float matrices camTick converts in place
 text = "jfg_probe_list(rdram, ctx);"
+
+# Frame interpolation: every world camera's matrix gets the camera's identity (src/jfg/interp_hooks.cpp).
+[[patches.hook]]
+func = "func_80040AA4"          # camSetProjMtx
+text = "jfg_interp_camera(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_8003F640"          # camInit (level load)
+text = "jfg_interp_level_start(rdram, ctx);"

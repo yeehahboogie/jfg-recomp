@@ -6,6 +6,7 @@
 #include <deque>
 #include <mutex>
 #include <optional>
+#include <unordered_map>
 #include <vector>
 
 #include "hle/rt64_jfg_frame.h"
@@ -52,6 +53,35 @@ private:
     std::deque<Frame> pending_;
 };
 
+// A camera's pose, from the game's camera struct, and what drives it (a cutscene camera object, a static camera;
+// any change of driver is a new shot).
+struct CameraPose {
+    float position[3];
+    int16_t yaw, pitch, roll; // binary angles, 0x10000 = 360 degrees
+    uint32_t driver;
+};
+
+// Decides when a camera's motion into a frame must not be interpolated: it's new or wasn't seen last frame, it
+// jumped far beyond its recent pace, it turned more than 30 degrees, or another driver took over.
+class CutDetector {
+public:
+    static constexpr float min_jump = 64.f; // world units
+    static constexpr int max_turn = 0x1555; // 30 degrees
+    // Called for every camera load; a camera loaded twice in one frame gets the first answer.
+    bool cut(uint32_t id, const CameraPose& pose, uint64_t frame);
+    void reset();
+
+private:
+    struct Last {
+        CameraPose pose;
+        float step = 0.f;
+        uint64_t frame = 0;
+        bool cut = true;
+    };
+    std::unordered_map<uint32_t, Last> last_;
+};
+
+CutDetector& cut_detector();
 Recorder& recorder();
 Handoff& handoff();
 }

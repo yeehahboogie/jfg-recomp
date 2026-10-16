@@ -671,7 +671,7 @@ index 7bec992..a95040f 100644
  
      struct PresentQueue {
 diff --git a/src/hle/rt64_rsp.cpp b/src/hle/rt64_rsp.cpp
-index ea0c1ac..5688ff7 100644
+index ea0c1ac..8e74e13 100644
 --- a/src/hle/rt64_rsp.cpp
 +++ b/src/hle/rt64_rsp.cpp
 @@ -5,6 +5,8 @@
@@ -683,16 +683,20 @@ index ea0c1ac..5688ff7 100644
  
  #include "../include/rt64_extended_gbi.h"
  #include "common/rt64_common.h"
-@@ -38,6 +40,27 @@ namespace RT64 {
+@@ -38,6 +40,31 @@ namespace RT64 {
      }
  
      void RSP::reset() {
 +        static const bool interpDebug = std::getenv("JFG_DEBUG_INTERP") != nullptr;
-+        if (interpDebug && ((jfgTagged + jfgUnknown) > 0)) {
-+            fprintf(stderr, "[interp] task %lld: %u tagged, %u unknown matrix loads\n", (long long)jfgTask, jfgTagged, jfgUnknown);
++        if (interpDebug && ((jfgTagged + jfgUnknown + jfgCamerasTagged + jfgCamerasUnknown) > 0)) {
++            fprintf(stderr, "[interp] task %lld: cameras %u tagged, %u unknown (first %08X); models %u tagged, %u unknown\n",
++                (long long)jfgTask, jfgCamerasTagged, jfgCamerasUnknown, jfgFirstUnknownCamera, jfgTagged, jfgUnknown);
 +        }
 +        jfgTagged = 0;
 +        jfgUnknown = 0;
++        jfgCamerasTagged = 0;
++        jfgCamerasUnknown = 0;
++        jfgFirstUnknownCamera = 0;
 +        jfgTask++;
 +        dkr.slots.fill(hlslpp::float4x4::identity());
 +        dkr.slotAbsolute.fill(false);
@@ -711,7 +715,7 @@ index ea0c1ac..5688ff7 100644
          modelMatrixStackSize = 1;
          projectionMatrixStackSize = 1;
          viewportStackSize = 1;
-@@ -380,6 +403,280 @@ namespace RT64 {
+@@ -380,6 +407,294 @@ namespace RT64 {
          vertexColorPDAddress = fromSegmentedMasked(address);
      }
  
@@ -943,6 +947,14 @@ index ea0c1ac..5688ff7 100644
 +        // transforms (interpolation plan 2) they're drawn as-is, so they can't be blended with a camera.
 +        if (interpolate) {
 +            group = jfgTransformGroup(physicalAddress, true);
++            if (group.matrixId == G_EX_ID_IGNORE) {
++                if (jfgCamerasUnknown++ == 0) {
++                    jfgFirstUnknownCamera = physicalAddress;
++                }
++            }
++            else {
++                jfgCamerasTagged++;
++            }
 +        }
 +        else {
 +            group = TransformGroup();
@@ -984,7 +996,13 @@ index ea0c1ac..5688ff7 100644
 +                dkr.viewProjIsSlot0 = true;
 +            }
 +            modelMatrixStack[modelMatrixStackSize - 1] = dkr.slots[slot];
-+            setModelGroupDKR(dkr.slotAddress[slot]);
++            // Slot 0 is the camera with an identity model: the camera's projection group carries its motion.
++            if (slot == 0) {
++                setModelGroupIgnoreDKR();
++            }
++            else {
++                setModelGroupDKR(dkr.slotAddress[slot]);
++            }
 +        }
 +        modelViewProjChanged = true;
 +    }
@@ -993,7 +1011,7 @@ index ea0c1ac..5688ff7 100644
          const hlslpp::float4x4 &projMatrix = projMatrixStack[projectionMatrixStackSize - 1];
          const bool perspProj = (projMatrix[3][3] == 0.0f) && (abs(projMatrix[1][1]) > 1e-6f);
 diff --git a/src/hle/rt64_rsp.h b/src/hle/rt64_rsp.h
-index 1611b7a..fc26750 100644
+index 1611b7a..81b84a9 100644
 --- a/src/hle/rt64_rsp.h
 +++ b/src/hle/rt64_rsp.h
 @@ -217,6 +217,34 @@ namespace RT64 {
@@ -1031,7 +1049,7 @@ index 1611b7a..fc26750 100644
          RSP(State *state);
          void reset();
          Projection::Type getCurrentProjectionType() const;
-@@ -239,6 +267,20 @@ namespace RT64 {
+@@ -239,6 +267,23 @@ namespace RT64 {
          void setVertexPD(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexEXV1(uint32_t address, uint8_t vtxCount, uint32_t dstIndex);
          void setVertexColorPD(uint32_t address);
@@ -1048,6 +1066,9 @@ index 1611b7a..fc26750 100644
 +        void setModelGroupIgnoreDKR();
 +        uint32_t jfgTagged = 0;
 +        uint32_t jfgUnknown = 0;
++        uint32_t jfgCamerasTagged = 0;
++        uint32_t jfgCamerasUnknown = 0;
++        uint32_t jfgFirstUnknownCamera = 0;
 +        void applyMatrixSlotDKR();
          template<bool addEmptyVelocity>
          void setVertexCommon(uint8_t dstIndex, uint8_t dstMax);

@@ -67,5 +67,33 @@ int main() {
     p = h.pop(0x1FB0C0, &discarded);
     assert(p && p->sequence == 103 && discarded == 0);
 
+    // Camera cuts. Positions in world units; angles are binary (0x10000 = 360 degrees).
+    using jfg::interp::CameraPose;
+    jfg::interp::CutDetector cuts;
+    const uint32_t cam = jfg::interp::camera_id(0, 0);
+    auto pose = [](float x, int16_t yaw, uint32_t driver = 0) { return CameraPose{{x, 100.f, 0.f}, yaw, 0, 0, driver}; };
+    assert(cuts.cut(cam, pose(0, 0), 10));        // first sighting: nothing to come from
+    assert(!cuts.cut(cam, pose(10, 0), 11));      // steady motion
+    assert(!cuts.cut(cam, pose(10, 0), 11));      // the same camera again in the same frame (particle pass): same answer
+    assert(!cuts.cut(cam, pose(20, 0), 12));
+    assert(!cuts.cut(cam, pose(30, 0x0300), 13)); // turning about 4 degrees a frame
+    assert(cuts.cut(cam, pose(900, 0x0300), 14)); // a jump far beyond its pace
+    assert(!cuts.cut(cam, pose(905, 0x0300), 15));
+    assert(cuts.cut(cam, pose(910, 0x2000), 16)); // turned 45 degrees in one frame
+    assert(!cuts.cut(cam, pose(915, 0x2000), 17));
+    assert(cuts.cut(cam, pose(920, 0x2000, 0x80123450), 18)); // another object now drives the camera (new shot)
+    assert(!cuts.cut(cam, pose(925, 0x2000, 0x80123450), 19));
+    assert(cuts.cut(cam, pose(930, 0x2000, 0x80123450), 21)); // missed a frame: nothing recent to come from
+    // Angles wrap: 0x7FF0 to -0x7FF0 is a 0x20 turn, not almost a full circle (getting to 0x7FF0 is a big turn).
+    assert(cuts.cut(cam, pose(935, int16_t(0x7FF0), 0x80123450), 22));
+    assert(!cuts.cut(cam, pose(940, int16_t(-0x7FF0), 0x80123450), 23));
+    // A fast but steady camera (the pod's flight) isn't cut once it's moving; the first big step is a jump.
+    assert(cuts.cut(cam, pose(1090, int16_t(-0x7FF0), 0x80123450), 24));
+    for (int i = 1; i < 5; i++) assert(!cuts.cut(cam, pose(1090.f + 150.f * i, int16_t(-0x7FF0), 0x80123450), 24 + i));
+    // Each camera keeps its own history; a level load forgets them all.
+    assert(cuts.cut(jfg::interp::camera_id(0, 1), pose(0, 0), 30));
+    cuts.reset();
+    assert(cuts.cut(cam, pose(1610, int16_t(-0x7FF0), 0x80123450), 29));
+
     std::puts("interp_test: OK");
 }
