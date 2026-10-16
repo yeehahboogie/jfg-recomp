@@ -5,8 +5,10 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source tools/paths.env
 ROM="${JFG_ROM:-jfg.z64}"
-tools/romtool/.venv/bin/romtool verify "$ROM"
-tools/romtool/.venv/bin/romtool build-elf "$ROM" --out generated --n64sym "$N64SYM"
+# A checked copy in big-endian byte order, whatever order the dump is in; RSPRecomp reads raw bytes from it.
+mkdir -p generated
+tools/romtool/.venv/bin/romtool export "$ROM" generated/jfg.z64
+tools/romtool/.venv/bin/romtool build-elf generated/jfg.z64 --out generated --n64sym "$N64SYM"
 rm -rf generated/funcs && mkdir -p generated/funcs
 "$N64RECOMP" generated/jfg.toml > generated/recomp.log 2>&1 || { tail -50 generated/recomp.log; exit 1; }
 problems=$(grep -E '\[WARN\]|[Ee]rror|Unhandled|Could not|No function found' generated/recomp.log \

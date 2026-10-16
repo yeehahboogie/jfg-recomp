@@ -5,7 +5,7 @@
 text_offset = 0x9E610
 text_size = 0xF80
 text_address = 0x04001080
-rom_file_path = "../jfg.z64"
+rom_file_path = "../generated/jfg.z64"  # the checked, big-endian copy scripts/recompile.sh writes
 output_file_path = "../generated/rsp/aspMain.cpp"
 output_function_name = "aspMain"
 # Command handlers: the dispatch does `lh $1, 0x10(index)` / `jr $1`, so the targets live in a 16-entry

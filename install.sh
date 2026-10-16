@@ -8,7 +8,6 @@
 # The game goes to ~/.local/share/jfg-recomp, with a `jet-force-gemini` command in ~/.local/bin and an entry in your
 # applications menu. Saves and settings live in ~/.config/JFGRecompiled.
 set -euo pipefail
-cd "$(dirname "$0")"
 
 dest="${JFG_PREFIX:-$HOME/.local/share/jfg-recomp}"
 bin_dir="$HOME/.local/bin"
@@ -32,8 +31,9 @@ case "$1" in
         say "Removed the game. Your saves and settings are still in $config"
         exit 0 ;;
 esac
-rom_in="$1"
-[[ -f "$rom_in" ]] || die "no such file: $rom_in"
+[[ -f "$1" ]] || die "no such file: $1"
+rom_in="$(realpath "$1")"
+cd "$(dirname "$0")"
 
 [[ "$(uname -s)" == Linux && "$(uname -m)" == x86_64 ]] || die "this port runs on 64-bit x86 Linux only"
 [[ -d .git ]] || die "run this from a git clone (git clone --recurse-submodules ...), not a downloaded archive"
@@ -89,8 +89,7 @@ if [[ ! -x tools/romtool/.venv/bin/romtool ]]; then
 fi
 
 say "Checking your ROM"
-mkdir -p build/rom
-tools/romtool/.venv/bin/romtool export "$rom_in" build/rom/jfg.z64
+tools/romtool/.venv/bin/romtool verify "$rom_in"
 
 # --- Build ----------------------------------------------------------------------------------------------------------
 compilers=(-DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++)
@@ -102,7 +101,7 @@ fi
 make -s -C lib/n64sym > /dev/null
 
 say "Recompiling the game from your ROM"
-JFG_ROM=build/rom/jfg.z64 scripts/recompile.sh
+JFG_ROM="$rom_in" scripts/recompile.sh
 
 say "Compiling (this takes a while the first time)"
 cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo "${compilers[@]}" > /dev/null
@@ -118,7 +117,7 @@ cp recompcontrollerdb.txt "$dest/"
 cp icons/512.png "$dest/icon.png"
 
 # The game remembers the ROM picked in its launcher as this file; putting it there skips that step.
-cp build/rom/jfg.z64 "$config/jfg.n64.us.z64"
+cp generated/jfg.z64 "$config/jfg.n64.us.z64"
 
 cat > "$launcher" <<EOF
 #!/bin/sh
