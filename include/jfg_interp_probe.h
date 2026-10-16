@@ -8,6 +8,9 @@ extern "C" {
 void jfg_probe_submit(uint8_t* rdram, recomp_context* ctx);
 /* Entry of mathMtxF2L (0x80048D84): a float matrix at $a0 is converted into the fixed-point matrix at $a1. */
 void jfg_probe_f2l(uint8_t* rdram, recomp_context* ctx);
+/* Entry of camConvertMatrixList (0x80042470): $a1 float matrices at $a0 are queued for camTick to convert to fixed
+   point in place (conv_mult_matrix); the display list loads them from there. */
+void jfg_probe_list(uint8_t* rdram, recomp_context* ctx);
 #ifdef __cplusplus
 }
 #endif

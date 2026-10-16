@@ -1,5 +1,6 @@
-// JFG_DEBUG_MTXSRC=<frame>: logs every mathMtxF2L conversion while frame <frame> is built, with the caller's return
-// address, and each graphics-task submit, so tools/diag/mtx-provenance.py can name the writer of every matrix the
+// JFG_DEBUG_MTXSRC=<frame>: logs every mathMtxF2L conversion and every camConvertMatrixList queueing (matrices
+// camTick converts in place) while frame <frame> is built, with the caller's return address, and each graphics-task
+// submit, so tools/diag/mtx-provenance.py can name the writer of every matrix the
 // display list loads (RT64's dmaMatrix logs the loads).
 #include <cstdio>
 #include <cstdlib>
@@ -25,4 +26,13 @@ extern "C" void jfg_probe_f2l(uint8_t* rdram, recomp_context* ctx) {
     if (probe_frame < 0 || building != probe_frame) return;
     std::fprintf(stderr, "[mtxsrc] write %ld %08X ra %08X via F2L\n", building, (uint32_t)ctx->r5 & 0x3FFFFFF,
                  (uint32_t)ctx->r31);
+}
+
+extern "C" void jfg_probe_list(uint8_t* rdram, recomp_context* ctx) {
+    if (probe_frame < 0 || building != probe_frame) return;
+    const uint32_t start = (uint32_t)ctx->r4 & 0x3FFFFFF;
+    const int count = (int)(ctx->r5 & 0xFFFF);
+    for (int i = 0; i < count && i < 256; i++) {
+        std::fprintf(stderr, "[mtxsrc] write %ld %08X ra %08X via list\n", building, start + 0x40 * i, (uint32_t)ctx->r31);
+    }
 }

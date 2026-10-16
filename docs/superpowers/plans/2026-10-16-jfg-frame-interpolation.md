@@ -1254,3 +1254,41 @@ git commit -m "Interpolation: plan 2 (characters, objects, sky, sprites, split s
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>"
 git push github main
 ```
+
+---
+
+## Phase 0 findings (2026-10-16)
+
+Measured with `JFG_DEBUG_MTXSRC` (Task 1) on two frames, with every matrix load explained:
+- **The pod's flight**, a cutscene in level 93, frame 18740 of the Goldwood script: task 18739, 64 loads.
+- **Goldwood gameplay** after a warp (`scripts/survey-level.sh 92`), frame 2601: task 2599, 155 loads.
+
+**How the matrices are made:**
+- `mathMtxF2L` (0x80048D84) converts a float matrix into the display list's fixed point. It makes cameras and
+  absolute draws.
+- `camConvertMatrixList` (0x80042470) queues float matrices (`$a0` start, `$a1` count). `camTick` (0x800424A0) converts
+  them in place with `conv_mult_matrix` (0x80074E50). All relative (object and joint) matrices are made this way, so a
+  character's joint buffer (`modGenAnimMatrices` output, instance +0x10/+0x14) is the very address the display list
+  loads.
+- **Two graphics tasks per gameplay frame.** The main display list alternates between 0x1FB0C0 and 0x220FE0 (about
+  155 loads). A small one at 0x327A10 (about 27 loads: one camera and object matrices) is submitted by a module
+  between two main submits, and the main frame's matrices are made before it. Cutscenes submit only the main one.
+  Hence the Task 4 ruling: the recorded frame is taken only at main display-list submits.
+
+| Kind | Writer | Loads (gameplay / flight) | Identity from | Hook point |
+|---|---|---|---|---|
+| World camera, per viewport, including the particle-pass and aiming-sight reloads | `camSetProjMtx` (0x80040AA4) through the track's matrix-push helper `func_8001448C` and `trackDraw` | 4 / 3 | camera number (0x800FA634) | `camSetProjMtx` entry (Task 6) |
+| HUD cameras (orthographic) | `frontInstruments` (HUD module) | 4 / 0 | not needed (fixed) | none: drawn as-is |
+| Absolute draws: track pieces, the sky, objects pre-multiplied by the camera | `func_8001448C`, called by `trackDraw` (0x800121C0) through `func_80013820`; also code after `trackUpdateLighting` and `trackDraw` itself | 67 / 5 | track block or object; the camera factored out (absolute = model × view-projection 0x800FAAF0) | plan 2: `func_8001448C` and its caller's object |
+| Custom objects (absolute) | `objPrintCustomObject` | 0 / 16 | object → serial | plan 2: `objPrintCustomObject` |
+| HUD elements (absolute) | `frontInstruments` | 5 / 0 | not needed | none: drawn as-is |
+| Character joints and animated objects (relative) | the `camConvertMatrixList` queue: player and object update in gameplay, `animseqUpdate` in cutscenes | 74 / 38 | object serial + joint index (the queued buffer is the instance's joint buffer) | plan 2: the `modGenAnimMatrices` hook shared with Big Heads |
+| Billboards (sprites, particles, shots) | no matrix of their own: vertices after vertex 0 are offset from it under the current slot | 10 sections per frame | particle slot or emitter | plan 2: `partDraw` (0x80063730) and the billboard path in the RT64 patch |
+| The small module display list (0x327A10) | one camera and about 25 object matrices | gameplay only | unknown purpose | none: drawn as-is |
+
+**Open for plan 2:**
+- What the small module display list draws.
+- Which object each `func_8001448C` draw belongs to: log its caller's object pointer.
+- `controlPlayer+0x650` is only the nearest named symbol to the queueing call's return address. The real queueing
+  site is probably an unnamed function after it, so find the call to `camConvertMatrixList` on the model-draw path
+  before relying on the name.

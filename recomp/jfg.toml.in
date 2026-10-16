@@ -159,3 +159,7 @@ text = "jfg_probe_submit(rdram, ctx); jfg_interp_submit(rdram, ctx);"
 [[patches.hook]]
 func = "func_80048D84"          # mathMtxF2L
 text = "jfg_probe_f2l(rdram, ctx);"
+
+[[patches.hook]]
+func = "func_80042470"          # camConvertMatrixList: queues float matrices camTick converts in place
+text = "jfg_probe_list(rdram, ctx);"
